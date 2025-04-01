@@ -14,7 +14,7 @@ const AuthForm = ({ type }) => {
         setError("");
 
         try {
-            const url = `${process.env.BACKEND_URL}/api/auth/${type === 'login' ? 'login' : 'register'}`;
+            const url = `${process.env.REACT_APP_BACKEND_URL}/api/auth/${type === 'login' ? 'login' : 'register'}`;
             const data = type === 'login'
                 ? { email, password }
                 : { email, password, username };
