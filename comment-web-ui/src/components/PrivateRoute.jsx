@@ -9,7 +9,7 @@ const PrivateRoute = ({ children }) => {
         const checkAuth = async () => {
             try {
                 await axios.get(
-                    `${process.env.REACT_APP_API_URL}/api/auth/check`,
+                    `${process.env.BACKEND_URL}/api/auth/check`,
                     { withCredentials: true }
                 );
                 setIsAuth(true);
