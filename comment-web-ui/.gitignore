@@ -1,0 +1,44 @@
+# dependencies
+/node_modules
+/.pnp
+.pnp.js
+
+# caches
+/.cache
+/.sass-cache
+/.eslintcache
+
+# environment variables
+.env
+.env.local
+.env.development
+.env.production
+.env.test
+
+# logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.DS_Store
+.thumbs.db
+
+# IDE
+.idea
+.vscode
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# tests
+/coverage
+
+# build
+/build
+/dist
+/out
+.next
+
+# docs
+/docs-html
