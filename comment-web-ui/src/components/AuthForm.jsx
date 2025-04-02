@@ -21,7 +21,7 @@ const AuthForm = ({ type }) => {
 
             const response = await axios.post(url, data, { withCredentials: true });
             if (response.status === 200 || response.status === 201) {
-                navigate('/');
+                navigate('/home');
             }
         } catch (err) {
             setError(err.response?.data?.message || 'An error occurred');

@@ -1,6 +1,7 @@
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
 const User = require('../models/userModel');
+const ms = require('ms');
 require('dotenv').config();
 
 const cookieSettings = () => {
@@ -9,7 +10,7 @@ const cookieSettings = () => {
         secure: false,
         sameSite: 'lax',
         domain: 'localhost',
-        maxAge: +process.env.JWT_EXPIRES_IN * 1000,
+        maxAge: ms(process.env.JWT_EXPIRES_IN),
         path: '/'
     };
 };

@@ -3,12 +3,10 @@ const cors = require('cors');
 require('dotenv').config();
 
 const authRoutes = require('./routes/authRoutes');
+const aiRoutes = require('./routes/aiRoutes');
 const cookieParser = require('cookie-parser'); // Добавьте в начале файла
 
 const app = express();
-
-// После app.use(express.json());
-app.use(cookieParser());
 
 // middleware
 app.use(cors({
@@ -17,9 +15,11 @@ app.use(cors({
     exposedHeaders: ['Set-Cookie'] // Добавьте эту строку
 }));
 app.use(express.json());
+app.use(cookieParser());
 
 // routes
 app.use('/api/auth', authRoutes);
+app.use('/api/ai', aiRoutes);
 
 // health check
 app.get('/', (_, res) => {
