@@ -1,0 +1,1 @@
+docker build -t comment-web-ui -f Dockerfile . && docker run -d --name comment-web-ui -p 3000:3000 -v ${PWD}:/app comment-web-ui
