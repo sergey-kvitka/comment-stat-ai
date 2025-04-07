@@ -39,9 +39,9 @@ create table comments (
     constraint fk_comments_user foreign key (user_id) references users(id)
         on delete set null,
 
-    constraint fk_comments_sentiment foreign key (sentiment_id) references users(id)
+    constraint fk_comments_sentiment foreign key (sentiment_id) references sentiments(id)
         on delete set null,
 
-    constraint fk_comments_emotion foreign key (emotion_id) references users(id)
+    constraint fk_comments_emotion foreign key (emotion_id) references emotions(id)
         on delete set null
 );

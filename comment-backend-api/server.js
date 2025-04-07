@@ -4,33 +4,56 @@ require('dotenv').config();
 
 const authRoutes = require('./routes/authRoutes');
 const aiRoutes = require('./routes/aiRoutes');
-const cookieParser = require('cookie-parser'); // Добавьте в начале файла
+const cookieParser = require('cookie-parser');
 
-const app = express();
+function createApp() {
+    const app = express();
 
-// middleware
-app.use(cors({
-    origin: 'http://localhost:3000',
-    credentials: true,
-    exposedHeaders: ['Set-Cookie'] // Добавьте эту строку
-}));
-app.use(express.json());
-app.use(cookieParser());
+    // base middleware
+    app.use(express.json());
+    app.use(cookieParser());
 
-// routes
-app.use('/api/auth', authRoutes);
-app.use('/api/ai', aiRoutes);
+    // CORS
+    if (!process.env.WEB_UI_URL) throw new Error('WEB_UI_URL not configured in .env');
+    app.use(cors({
+        origin: process.env.WEB_UI_URL,
+        credentials: true,
+        exposedHeaders: ['Set-Cookie']
+    }));
 
-// health check
-app.get('/', (_, res) => {
-    res.send('Node.js service is running');
-});
+    // health check
+    app.get('/', (_, res) => res.send('Node.js service is running'));
 
-const PORT = process.env.PORT;
-if (PORT) {
-    app.listen(PORT, () => {
-        console.log(`Node.js service is running on port ${PORT}`);
-    });
-} else {
-    console.error('Unable to get PORT from .env');
+    return app;
 }
+
+function configureRoutes(app) {
+    app.use('/api/auth', authRoutes);
+    app.use('/api/ai', aiRoutes);
+}
+
+function getConfiguredPort() {
+    const port = process.env.PORT;
+    if (!port) throw new Error('PORT not configured in .env');
+    return port;
+}
+
+async function startServer() {
+    try {
+        const app = createApp();
+
+        await db.initializeDB();
+        configureRoutes(app);
+
+        const PORT = getConfiguredPort();
+        app.listen(PORT, () => {
+            console.log(`Server running on port ${PORT}`);
+        });
+
+    } catch (err) {
+        console.error('Failed to start server:', err);
+        process.exit(1);
+    }
+}
+
+startServer();

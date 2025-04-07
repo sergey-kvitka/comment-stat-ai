@@ -1,4 +1,5 @@
 require('dotenv').config();
+const Comment = require('./models/commentModel');
 
 const axios = require('axios');
 
