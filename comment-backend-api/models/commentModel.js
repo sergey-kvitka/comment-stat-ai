@@ -47,7 +47,7 @@ class Comment {
 
     static async findByTag(tagId) {
         const result = await db.query(/* sql */ `
-            with recursiveall_tags as (
+            with recursive all_tags as (
                 select t.* from tags t where t.id = $1
                 union all
                 select t2.* from tags t2
