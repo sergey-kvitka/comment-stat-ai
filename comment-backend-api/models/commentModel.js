@@ -3,7 +3,6 @@ const db = require('../db');
 /** Maps <comment> object to required structure */
 const mapInPlace = comment => {
     util.rename(comment, 'user_id', 'userId');
-    util.rename(comment, 'tag_id', 'tagId');
 }
 
 const commentReturning = /* sql */ ` returning
@@ -45,20 +44,29 @@ class Comment {
         // todo
     }
 
-    static async findByTag(tagId) {
+    /**
+     * Function executes query to DB and returns array of comments by tags (and their children)
+     * @param {number[]} tagIds - integer array (tag IDs)
+     * @returns Array of objects representing comments
+     */
+    static async findByTags(tagIds) {
         const result = await db.query(/* sql */ `
-            with recursive all_tags as (
-                select t.* from tags t where t.id = $1
-                union all
-                select t2.* from tags t2
-                join all_tags d on t2.parent_id = d.id
+            with recursive tag_hierarchy as (
+                select t.* from tags t where t.id = any(array(
+                        select json_array_elements_text($1::json)::bigint
+                ))
+                union
+                select t.* from tags t
+                join tag_hierarchy th on t.parent_id = th.id
             )
-            select c.* from comments c 
-            join all_tags t on t.id = c.tag_id`, [tagId]
+            select distinct c.*
+            from tag_hierarchy th
+            join comment_tag_link ct on ct.tag_id = th.id
+            join comments c on ct.comment_id = c.id`, [JSON.stringify(tagIds)]
         );
-        const tags = result.rows;
-        tags.forEach(tag => mapInPlace(tag));
-        return tags;
+        const comments = result.rows;
+        comments.forEach(tag => mapInPlace(tag));
+        return comments;
     }
 }
 
