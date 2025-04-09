@@ -10,43 +10,48 @@ const mapInPlace = comment => {
 }
 
 const commentReturning = /* sql */ ` returning
-        id, text, user_id, tag_id, analyzed,
+        id, text, user_id, analyzed, created_at, modified_at
         case when sentiment_id is null then null else (select name from sentiments s where s.id = sentiment_id) end as "sentiment_id",
         case when emotion_id   is null then null else (select name from emotions   e where e.id = emotion_id  ) end as "emotion_id"
     `;
 
 const insertCommentSql = `insert into 
-    comments (text, user_id, tag_id, analyzed, sentiment_id, emotion_id)
+    comments (text, user_id, analyzed, sentiment_id, emotion_id)
     values (
-        $1, $2, $3, coalesce($4, false),
-        case when $5 is null then null else (select id from sentiments where name = $5) end,
-        case when $6 is null then null else (select id from emotions   where name = $6) end
+        $1, $2, coalesce($3, false),
+        case when $4 is null then null else (select id from sentiments where name = $4) end,
+        case when $5 is null then null else (select id from emotions   where name = $5) end
     ) ` + commentReturning;
 
-const updateCommentSql = `update comments set 
+const updateCommentSql = `update comments set
     text     = $1,
-    user_id  = $2, 
-    tag_id   = $3, 
-    analyzed = coalesce($4, false),
+    user_id  = $2,
+    analyzed = coalesce($3, false),
     modified_at  = clock_timestamp(),
-    sentiment_id = case when $5 is null then null else (select id from sentiments where name = $5) end,
-    emotion_id   = case when $6 is null then null else (select id from emotions   where name = $6) end
-    where id = $7 ` + commentReturning;
+    sentiment_id = case when $4 is null then null else (select id from sentiments where name = $4) end,
+    emotion_id   = case when $5 is null then null else (select id from emotions   where name = $5) end
+    where id = $6 ` + commentReturning;
 
 class Comment {
-    static async save({ id, text, userId, tagId, sentiment, emotion, analyzed }) {
+    static async save({ id, text, userId, sentiment, emotion, analyzed }) {
         let result;
         if (id === null) {
-            result = await db.query(insertCommentSql, [text, userId, tagId, analyzed, sentiment, emotion]);
+            result = await db.query(insertCommentSql, [text, userId, analyzed, sentiment, emotion]);
         } else {
-            result = await db.query(updateCommentSql, [text, userId, tagId, analyzed, sentiment, emotion, id]);
+            result = await db.query(updateCommentSql, [text, userId, analyzed, sentiment, emotion, id]);
         }
+        // todo: add tagIds
         mapInPlace(result.rows[0]);
         return result.rows[0];
     }
 
     static async saveAll(comments) {
-        // todo
+        const savedComments = [];
+        for (let comment of comments) {
+            const saved = await Comment.save(comment);
+            savedComments.push(saved);
+        }
+        return savedComments;
     }
 
     /**
@@ -56,13 +61,13 @@ class Comment {
      */
     static async findByTags(tagIds) {
         const result = await db.query(/* sql */ `
-            with recursive tag_hierarchy as (
-                select t.* from tags t where t.id = any(array(
-                        select json_array_elements_text($1::json)::bigint
-                ))
+            with recursive all_tags as (
+                select t.* from tags t where t.id = any(
+                    array(select json_array_elements_text($1::json)::bigint)
+                )
                 union
-                select t.* from tags t
-                join tag_hierarchy th on t.parent_id = th.id
+                select t2.* from tags t2
+                join all_tags tg on t2.parent_id = tg.id
             )
             select
                 c.id, c.text, c.user_id, c.analyzed, c.created_at, c.modified_at,
@@ -74,9 +79,8 @@ class Comment {
                 ) as tag_ids
             from comments c
             where exists (
-                select 1 
-                from comment_tag_link ct
-                join tag_hierarchy th on ct.tag_id = th.id
+                select 1 from comment_tag_link ct
+                join all_tags tg on ct.tag_id = tg.id
                 where ct.comment_id = c.id
             )`, [JSON.stringify(tagIds)]
         );
