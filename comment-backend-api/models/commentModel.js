@@ -33,16 +33,48 @@ const updateCommentSql = `update comments set
     where id = $6 ` + commentReturning;
 
 class Comment {
-    static async save({ id, text, userId, sentiment, emotion, analyzed }) {
+    static async save({ id, text, userId, sentiment, emotion, analyzed, tagIds }) {
         let result;
         if (id === null) {
             result = await db.query(insertCommentSql, [text, userId, analyzed, sentiment, emotion]);
         } else {
             result = await db.query(updateCommentSql, [text, userId, analyzed, sentiment, emotion, id]);
         }
-        // todo: add tagIds
-        mapInPlace(result.rows[0]);
-        return result.rows[0];
+        const comment = result.rows[0];
+        mapInPlace(comment);
+        if (tagIds !== undefined) {
+            comment.tagIds = tagIds;
+            comment = await Comment.setTags(comment);
+        }
+        return comment;
+    }
+
+    static async setTags(comment) {
+        const { id, tagIds } = comment;
+        // first we remove tags that are not presented in parameter
+        await db.query(/* sql */ `
+            delete from comment_tag_link
+            where comment_id = $1 
+                and tag_id not in (
+                    select json_array_elements_text($2::json)::bigint
+                )
+            `, [id, tagIds]
+        );
+        // then we create link to tags that are not presented in "comment_tag_link" table
+        const result = await db.query( /* sql */ `
+            insert into comment_tag_link (comment_id, tag_id)
+            select
+                $1 as comment_id,
+                tags::bigint as tag_id
+            from json_array_elements_text($2::json) as tags
+            where tags::bigint not in (
+                select tag_id from comment_tag_link where comment_id = $1
+            )
+            returning tag_id
+            `, [id, tagIds]
+        );
+        comment.tagIds = result.rows.map(row => row.tag_id);
+        return comment;
     }
 
     static async saveAll(comments) {
