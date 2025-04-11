@@ -50,17 +50,23 @@ class Comment {
     }
 
     static async setTags(comment) {
-        const { id, tagIds } = comment;
-        // first we remove tags that are not presented in parameter
+        const { tagIds } = comment;
+        // removing tags that are not presented in parameter
         await db.query(/* sql */ `
             delete from comment_tag_link
             where comment_id = $1 
                 and tag_id not in (
                     select json_array_elements_text($2::json)::bigint
                 )
-            `, [id, tagIds]
+            `, [comment.id, JSON.stringify(tagIds)]
         );
-        // then we create link to tags that are not presented in "comment_tag_link" table
+        // saving tags to DB (with avoiding duplication)
+        const updatedComment = Comment.addTags(comment, tagIds);
+        return updatedComment;
+    }
+
+    static async addTags(comment, tagIds) {
+        const id = comment.id;
         const result = await db.query( /* sql */ `
             insert into comment_tag_link (comment_id, tag_id)
             select
@@ -71,10 +77,18 @@ class Comment {
                 select tag_id from comment_tag_link where comment_id = $1
             )
             returning tag_id
-            `, [id, tagIds]
+            `, [id, JSON.stringify(tagIds)]
         );
-        comment.tagIds = result.rows.map(row => row.tag_id);
-        return comment;
+        await db.query(`update comments set modified_at = clock_timestamp() where id = $1`, [id]);
+
+        const prevTags = comment.tagIds ?? []; // previously presented tags in <comment> object
+        const newTags = result.rows.map(row => row.tag_id); // tags successfuly added into DB
+        const allTags = [...prevTags, ...newTags];
+        return {
+            ...comment,
+            // joining, removing duplicates and sorting tags
+            tagIds: Array.from(new Set(allTags)).sort((a, b) => +a - +b)
+        };
     }
 
     static async saveAll(comments) {
