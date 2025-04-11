@@ -91,6 +91,17 @@ class Comment {
         };
     }
 
+    static async deleteTags(comment, tagIds) {
+        await db.query( /* sql */ `
+            delete from comment_tag_link
+            where comment_id = $1
+                and tag_id in (
+                    select json_array_elements_text($2::json)::bigint
+                )`,
+            [comment.id, JSON.stringify(tagIds)]
+        );
+    }
+
     static async saveAll(comments) {
         const savedComments = [];
         for (let comment of comments) {

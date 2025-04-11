@@ -43,6 +43,17 @@ class Tag {
         return result.rows[0];
     }
 
+    static async findByIdList(ids) {
+        const result = await db.query( /* sql */ `
+            select * from tags where id in (
+                select json_array_elements_text($1::json)::bigint
+            )`,
+            [JSON.stringify(ids)]
+        );
+        mapInPlace(result.rows[0]);
+        return result.rows[0];
+    }
+
     static async findByUser(userId) {
         const result = await db.query(`select * from tags where user_id = $1`, [userId]);
         const tags = result.rows;
@@ -53,6 +64,13 @@ class Tag {
     static async findHierarchyByUser(userId) {
         const tags = await Tag.findByUser(userId);
         return tagsToHierarchy(tags);
+    }
+
+    static async findByComment(commentId) {
+        const result = await db.query(`select * from tags where comment_id = $1`, [commentId]);
+        const tags = result.rows;
+        tags.forEach(tag => mapInPlace(tag));
+        return tags;
     }
 }
 
