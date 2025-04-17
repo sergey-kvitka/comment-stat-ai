@@ -10,17 +10,17 @@ const mapInPlace = comment => {
 }
 
 const commentReturning = /* sql */ ` returning
-        id, text, user_id, analyzed, created_at, modified_at
-        case when sentiment_id is null then null else (select name from sentiments s where s.id = sentiment_id) end as "sentiment_id",
-        case when emotion_id   is null then null else (select name from emotions   e where e.id = emotion_id  ) end as "emotion_id"
+        id, text, user_id, analyzed, created_at, modified_at,
+        (select name from sentiments s where s.id = sentiment_id) as "sentiment_id",
+        (select name from emotions e   where e.id = emotion_id)   as "emotion_id"
     `;
 
 const insertCommentSql = `insert into 
     comments (text, user_id, analyzed, sentiment_id, emotion_id)
     values (
         $1, $2, coalesce($3, false),
-        case when $4 is null then null else (select id from sentiments where name = $4) end,
-        case when $5 is null then null else (select id from emotions   where name = $5) end
+        (select id from sentiments where name = $4 and $4 is not null),
+        (select id from emotions   where name = $5 and $5 is not null)
     ) ` + commentReturning;
 
 const updateCommentSql = `update comments set
@@ -128,8 +128,8 @@ class Comment {
             )
             select
                 c.id, c.text, c.user_id, c.analyzed, c.created_at, c.modified_at,
-                case when c.sentiment_id is null then null else (select name from sentiments s where s.id = c.sentiment_id) end as "sentiment",
-                case when c.emotion_id   is null then null else (select name from emotions   e where e.id = c.emotion_id  ) end as "emotion",
+                (select name from sentiments s where s.id = c.sentiment_id and c.sentiment_id is not null) as "sentiment",
+                (select name from emotions   e where e.id = c.emotion_id   and c.emotion_id   is not null) as "emotion",
                 (
                     select json_agg(ct.tag_id order by ct.tag_id) 
                     from comment_tag_link ct where ct.comment_id = c.id
@@ -150,14 +150,15 @@ class Comment {
         const result = await db.query(/* sql */ `
             select
                 c.id, c.text, c.user_id, c.analyzed, c.created_at, c.modified_at,
-                case when c.sentiment_id is null then null else (select name from sentiments s where s.id = c.sentiment_id) end as "sentiment",
-                case when c.emotion_id   is null then null else (select name from emotions   e where e.id = c.emotion_id  ) end as "emotion",
+                (select name from sentiments s where s.id = c.sentiment_id and c.sentiment_id is not null) as "sentiment",
+                (select name from emotions   e where e.id = c.emotion_id   and c.emotion_id   is not null) as "emotion",
                 (
                     select json_agg(ct.tag_id order by ct.tag_id) 
                     from comment_tag_link ct where ct.comment_id = c.id
                 ) as tag_ids
             from comments c
             where c.user_id = $1
+            order by c.modified_at desc
             `, [userId]
         );
         const comments = result.rows;

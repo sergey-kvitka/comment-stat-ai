@@ -9,13 +9,24 @@ import {
     Divider,
     Chip,
     Box,
-    Paper
+    Paper,
+    Button,
+    TextField,
+    Dialog,
+    DialogActions,
+    DialogContent,
+    DialogTitle,
+    CircularProgress
 } from '@mui/material';
 
-const CommentList = ({ comments = [] }) => {
+const CommentList = ({ comments = [], onAddComment }) => {
     const [selected, setSelected] = useState([]);
     const [selectAll, setSelectAll] = useState(false);
+    const [isDialogOpen, setIsDialogOpen] = useState(false);
+    const [newCommentText, setNewCommentText] = useState('');
+    const [isLoading, setIsLoading] = useState(false);
 
+    // Обработчики для выбора комментариев
     const handleToggle = (id) => {
         const currentIndex = selected.indexOf(id);
         const newSelected = [...selected];
@@ -39,11 +50,35 @@ const CommentList = ({ comments = [] }) => {
         setSelectAll(!selectAll);
     };
 
+    // Обработчики для добавления комментария
+    const handleAddCommentClick = () => {
+        setIsDialogOpen(true);
+    };
+
+    const handleDialogClose = () => {
+        setIsDialogOpen(false);
+        setNewCommentText('');
+    };
+
+    const handleCommentSubmit = async () => {
+        if (!newCommentText.trim()) return;
+
+        setIsLoading(true);
+        try {
+            await onAddComment(newCommentText);
+            handleDialogClose();
+        } catch (error) {
+            console.error('Ошибка при добавлении комментария:', error);
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
     const formatDate = (dateStr) => {
         try {
             return new Date(dateStr).toLocaleString();
         } catch {
-            return dateStr; // Возвращаем исходную строку, если дата невалидна
+            return dateStr;
         }
     };
 
@@ -54,20 +89,58 @@ const CommentList = ({ comments = [] }) => {
             component="div"
             sx={{
                 display: 'flex',
+                justifyContent: 'space-between',
                 alignItems: 'center',
                 marginBottom: 2
             }}
         >
-            <Checkbox
-                edge="start"
-                checked={selectAll}
-                indeterminate={selected.length > 0 && selected.length < comments.length}
-                onChange={handleSelectAll}
-            />
-            <Typography component="h2" variant="h6">
-                Комментарии ({comments.length})
-            </Typography>
+            <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                <Checkbox
+                    edge="start"
+                    checked={selectAll}
+                    indeterminate={selected.length > 0 && selected.length < comments.length}
+                    onChange={handleSelectAll}
+                />
+                <Typography component="h2" variant="h6">
+                    Комментарии ({comments.length})
+                </Typography>
+            </Box>
+
+            <Button
+                variant="contained"
+                onClick={handleAddCommentClick}
+            >
+                Добавить комментарий
+            </Button>
         </Box>
+
+        {/* Диалог добавления нового комментария */}
+        <Dialog open={isDialogOpen} onClose={handleDialogClose}>
+            <DialogTitle>Новый комментарий</DialogTitle>
+            <DialogContent>
+                <TextField
+                    autoFocus
+                    margin="dense"
+                    label="Текст комментария"
+                    fullWidth
+                    variant="outlined"
+                    multiline
+                    rows={4}
+                    value={newCommentText}
+                    onChange={(e) => setNewCommentText(e.target.value)}
+                />
+            </DialogContent>
+            <DialogActions>
+                <Button onClick={handleDialogClose}>Отмена</Button>
+                <Button
+                    onClick={handleCommentSubmit}
+                    variant="contained"
+                    disabled={!newCommentText.trim() || isLoading}
+                >
+                    {isLoading ? <CircularProgress size={24} /> : 'Сохранить'}
+                </Button>
+            </DialogActions>
+        </Dialog>
 
         {/* Список комментариев */}
         <List component="div">

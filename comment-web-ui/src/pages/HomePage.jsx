@@ -53,6 +53,28 @@ const HomePage = () => {
         }
     };
 
+    const handleAddComment = async commentText => {
+        try {
+            const response = await axios.post(
+                `${process.env.REACT_APP_BACKEND_URL}/api/comment/save`,
+                {
+                    comment: {
+                        id: null,
+                        text: commentText,
+                        sentiment: null,
+                        emotion: null,
+                        analyzed: false
+                    }
+                },
+                { withCredentials: true }
+            );
+            setAllComments(prev => [response.data.comment, ...prev]);
+        } catch (err) {
+            alert(err.response?.data?.message || 'An error occurred');
+        }
+
+    };
+
     return <div className="home-page">
         <button onClick={handleLogout}>Выйти из профиля</button>
         <br />
@@ -68,7 +90,7 @@ const HomePage = () => {
         <p>Настроение: {sentiment}</p>
         <br />
         <br />
-        <CommentList comments={allComments} />
+        <CommentList comments={allComments} onAddComment={handleAddComment} />
     </div>;
 };
 
