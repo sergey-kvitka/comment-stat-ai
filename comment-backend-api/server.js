@@ -5,6 +5,7 @@ require('dotenv').config();
 const db = require('./db');
 const authRoutes = require('./routes/authRoutes');
 const aiRoutes = require('./routes/aiRoutes');
+const commentRoutes = require('./routes/commentRoutes');
 const cookieParser = require('cookie-parser');
 
 function createApp() {
@@ -31,6 +32,7 @@ function createApp() {
 function configureRoutes(app) {
     app.use('/api/auth', authRoutes);
     app.use('/api/ai', aiRoutes);
+    app.use('/api/comment', commentRoutes);
 }
 
 function getConfiguredPort() {

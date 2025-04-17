@@ -20,7 +20,7 @@ const PrivateRoute = ({ children }) => {
         checkAuth();
     }, []);
 
-    if (isAuth === null) return <></>;
+    if (isAuth === null) return <></>; // todo spinner
     return isAuth ? children : <Navigate to="/login" replace />;
 };
 

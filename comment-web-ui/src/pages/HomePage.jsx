@@ -1,13 +1,32 @@
 import { useNavigate } from 'react-router-dom';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import axios from 'axios';
+import CommentList from '../components/CommentList';
 
 const HomePage = () => {
     const [comment, setComment] = useState('');
     const [emotion, setEmotion] = useState('');
     const [sentiment, setSentiment] = useState('');
 
+    const [allComments, setAllComments] = useState([]);
+
     const navigate = useNavigate();
+
+    useEffect(() => {
+        const loadComments = async () => {
+            try {
+                const response = await axios.get(
+                    `${process.env.REACT_APP_BACKEND_URL}/api/comment/all`,
+                    { withCredentials: true }
+                );
+                setAllComments(response.data.comments);
+            } catch (e) {
+                console.error(e.response?.status);
+                console.error(e);
+            }
+        };
+        loadComments();
+    }, []);
 
     const handleLogout = () => {
         // todo: logout endpoint
@@ -29,7 +48,7 @@ const HomePage = () => {
             // alert(JSON.stringify(response.data));
             setEmotion(response.data[0].emotion);
             setSentiment(response.data[0].sentiment);
-        } catch (err) { 
+        } catch (err) {
             alert(err.response?.data?.message || 'An error occurred');
         }
     };
@@ -47,6 +66,9 @@ const HomePage = () => {
         <button onClick={sendToAnalyze}>Анализировать</button>
         <p>Эмоция: {emotion}</p>
         <p>Настроение: {sentiment}</p>
+        <br />
+        <br />
+        <CommentList comments={allComments} />
     </div>;
 };
 

@@ -145,6 +145,25 @@ class Comment {
         comments.forEach(tag => mapInPlace(tag));
         return comments;
     }
+
+    static async findByUser(userId) {
+        const result = await db.query(/* sql */ `
+            select
+                c.id, c.text, c.user_id, c.analyzed, c.created_at, c.modified_at,
+                case when c.sentiment_id is null then null else (select name from sentiments s where s.id = c.sentiment_id) end as "sentiment",
+                case when c.emotion_id   is null then null else (select name from emotions   e where e.id = c.emotion_id  ) end as "emotion",
+                (
+                    select json_agg(ct.tag_id order by ct.tag_id) 
+                    from comment_tag_link ct where ct.comment_id = c.id
+                ) as tag_ids
+            from comments c
+            where c.user_id = $1
+            `, [userId]
+        );
+        const comments = result.rows;
+        comments.forEach(tag => mapInPlace(tag));
+        return comments;
+    }
 }
 
 module.exports = Comment;
