@@ -61,6 +61,45 @@ const CommentList = ({ comments = [], onAddComment, onAnalyze }) => {
         }
     };
 
+    const commentClasses = comment => {
+        if (!comment.sentiment || !comment.emotion) {
+            return <Chip
+                sx={{
+                    background: '#888888',
+                    color: 'white'
+                }}
+                label={'Не проанализирован'}
+                size="small"
+            />
+        }
+        const sentimentData = {
+            positive: { color: '#00BB00', text: 'Позитивный' },
+            neutral: { color: '#AAAAAA', text: 'Нейтральный' },
+            negative: { color: '#EE0000', text: 'Негативный' }
+        }[comment.sentiment];
+        const emotionData = {
+            joy: { color: '#00BB00', text: 'Радость' },
+            anger: { color: '#EE0000', text: 'Злость' },
+            fear: { color: '#7F2180', text: 'Страх' },
+            surprise: { color: '#22ACBB', text: 'Удивление' },
+            sadness: { color: '#152BA7', text: 'Грусть' },
+            neutral: { color: '#AAAAAA', text: 'Нет эмоции' },
+        }[comment.emotion];
+
+        return <>
+            <Chip
+                label={sentimentData.text}
+                sx={{ background: sentimentData.color, color: 'white' }}
+                size="small"
+            />
+            <Chip
+                label={emotionData.text}
+                sx={{ background: emotionData.color, color: 'white' }}
+                size="small"
+            />
+        </>;
+    };
+
     const commentToElement = comment => (
         <React.Fragment key={comment.id}>
             <ListItem component="div" disablePadding>
@@ -88,16 +127,7 @@ const CommentList = ({ comments = [], onAddComment, onAnalyze }) => {
                                 alignItems: 'center'
                             }}
                         >
-                            <Chip
-                                label={`Настроение: ${comment.sentiment || 'не проанализирован'}`}
-                                color={comment.sentiment ? 'primary' : 'default'}
-                                size="small"
-                            />
-                            <Chip
-                                label={`Эмоция: ${comment.emotion || 'не проанализирован'}`}
-                                color={comment.emotion ? 'secondary' : 'default'}
-                                size="small"
-                            />
+                            {commentClasses(comment)}
                             <Typography
                                 component="span"
                                 variant="caption"
