@@ -118,6 +118,7 @@ const HomePage = () => {
         <br />
         <CommentList
             comments={allComments}
+            tags={{ /* todo: load tags */ }}
             onAddComment={handleAddComment}
             onAnalyze={handleAnalyze}
         />

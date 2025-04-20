@@ -4,7 +4,7 @@ import {
     Paper, Button, TextField, Dialog, DialogActions, DialogContent, DialogTitle, CircularProgress
 } from '@mui/material';
 
-const CommentList = ({ comments = [], onAddComment, onAnalyze }) => {
+const CommentList = ({ comments, tags, onAddComment, onAnalyze }) => {
     const [selected, setSelected] = useState([]);
     const [selectAll, setSelectAll] = useState(false);
     const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -100,6 +100,24 @@ const CommentList = ({ comments = [], onAddComment, onAnalyze }) => {
         </>;
     };
 
+    const renderTags = (comment) => {
+        return comment.tagIds?.map(tagId => {
+            const tag = tags[tagId];
+            if (!tag) return null;
+            return <Chip
+                key={tagId}
+                label={tag.text}
+                sx={{
+                    background: tag.color,
+                    color: 'white',
+                    marginRight: '5px',
+                    marginTop: 1
+                }}
+                size="small"
+            />;
+        });
+    };
+
     const commentToElement = comment => (
         <React.Fragment key={comment.id}>
             <ListItem component="div" disablePadding>
@@ -117,25 +135,28 @@ const CommentList = ({ comments = [], onAddComment, onAnalyze }) => {
                         </Typography>
                     }
                     secondary={
-                        <Box
-                            component="div"
-                            sx={{
-                                display: 'flex',
-                                flexWrap: 'wrap',
-                                gap: 1,
-                                marginTop: 1,
-                                alignItems: 'center'
-                            }}
-                        >
-                            {commentClasses(comment)}
-                            <Typography
-                                component="span"
-                                variant="caption"
-                                sx={{ marginLeft: 'auto' }}
+                        <>
+                            <Box
+                                component="div"
+                                sx={{
+                                    display: 'flex',
+                                    flexWrap: 'wrap',
+                                    gap: 1,
+                                    marginTop: 1,
+                                    alignItems: 'center'
+                                }}
                             >
-                                {formatDate(comment.modifiedStr)}
-                            </Typography>
-                        </Box>
+                                {commentClasses(comment)}
+                                <Typography
+                                    component="span"
+                                    variant="caption"
+                                    sx={{ marginLeft: 'auto' }}
+                                >
+                                    {formatDate(comment.modifiedStr)}
+                                </Typography>
+                            </Box>
+                            {renderTags(comment)}
+                        </>
                     }
                     disableTypography
                 />
@@ -167,14 +188,20 @@ const CommentList = ({ comments = [], onAddComment, onAnalyze }) => {
                     Комментарии ({comments.length})
                 </Typography>
             </Box>
-            <Button
-                variant="contained"
-                onClick={handleAddCommentClick}
-            >Добавить комментарий</Button>
-            <Button
-                variant="outlined"
-                onClick={() => onAnalyze(selected)}
-            >Анализировать</Button>
+            <Box sx={{ display: 'flex', gap: 1 }}>
+                <Button
+                    variant="contained"
+                    onClick={handleAddCommentClick}
+                >
+                    Добавить комментарий
+                </Button>
+                <Button
+                    variant="outlined"
+                    onClick={() => onAnalyze(selected)}
+                >
+                    Анализировать
+                </Button>
+            </Box>
         </Box>
 
         <Dialog open={isDialogOpen} onClose={handleDialogClose}>
@@ -206,7 +233,7 @@ const CommentList = ({ comments = [], onAddComment, onAnalyze }) => {
         <List component="div">
             {comments.map(c => commentToElement(c))}
         </List>
-    </Paper>
+    </Paper>;
 };
 
 export default CommentList;
