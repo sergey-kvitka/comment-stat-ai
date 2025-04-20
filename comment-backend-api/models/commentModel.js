@@ -3,16 +3,29 @@ const util = require('../services/util');
 
 /** Maps <comment> object to required structure */
 const mapInPlace = comment => {
+    if (comment.tag_ids === null) comment.tag_ids = [];
     util.rename(comment, 'user_id', 'userId');
     util.rename(comment, 'tag_ids', 'tagIds');
     util.rename(comment, 'created_at', 'createdStr');
     util.rename(comment, 'modified_at', 'modifiedStr');
 }
 
+const commentSelect = /* sql */ `
+    select
+        c.id, c.text, c.user_id, c.analyzed, c.created_at, c.modified_at,
+        (select name from sentiments s where s.id = c.sentiment_id and c.sentiment_id is not null) as "sentiment",
+        (select name from emotions   e where e.id = c.emotion_id   and c.emotion_id   is not null) as "emotion",
+        (
+            select json_agg(ct.tag_id order by ct.tag_id)
+            from comment_tag_link ct where ct.comment_id = c.id
+        ) as tag_ids
+    from comments c
+    `;
+
 const commentReturning = /* sql */ ` returning
         id, text, user_id, analyzed, created_at, modified_at,
-        (select name from sentiments s where s.id = sentiment_id) as "sentiment_id",
-        (select name from emotions e   where e.id = emotion_id)   as "emotion_id"
+        (select name from sentiments s where s.id = sentiment_id) as "sentiment",
+        (select name from emotions e   where e.id = emotion_id)   as "emotion"
     `;
 
 const insertCommentSql = `insert into 
@@ -28,8 +41,8 @@ const updateCommentSql = `update comments set
     user_id  = $2,
     analyzed = coalesce($3, false),
     modified_at  = clock_timestamp(),
-    sentiment_id = case when $4 is null then null else (select id from sentiments where name = $4) end,
-    emotion_id   = case when $5 is null then null else (select id from emotions   where name = $5) end
+    sentiment_id = (select id from sentiments where name = $4 and $4 is not null),
+    emotion_id   = (select id from emotions   where name = $5 and $5 is not null)
     where id = $6 ` + commentReturning;
 
 class Comment {
@@ -40,7 +53,7 @@ class Comment {
         } else {
             result = await db.query(updateCommentSql, [text, userId, analyzed, sentiment, emotion, id]);
         }
-        const comment = result.rows[0];
+        let comment = result.rows[0];
         mapInPlace(comment);
         if (tagIds !== undefined) {
             comment.tagIds = tagIds;
@@ -67,7 +80,7 @@ class Comment {
 
     static async addTags(comment, tagIds) {
         const id = comment.id;
-        const result = await db.query( /* sql */ `
+        const result = await db.query(/* sql */ `
             insert into comment_tag_link (comment_id, tag_id)
             select
                 $1 as comment_id,
@@ -126,15 +139,7 @@ class Comment {
                 select t2.* from tags t2
                 join all_tags tg on t2.parent_id = tg.id
             )
-            select
-                c.id, c.text, c.user_id, c.analyzed, c.created_at, c.modified_at,
-                (select name from sentiments s where s.id = c.sentiment_id and c.sentiment_id is not null) as "sentiment",
-                (select name from emotions   e where e.id = c.emotion_id   and c.emotion_id   is not null) as "emotion",
-                (
-                    select json_agg(ct.tag_id order by ct.tag_id) 
-                    from comment_tag_link ct where ct.comment_id = c.id
-                ) as tag_ids
-            from comments c
+            ${commentSelect}
             where exists (
                 select 1 from comment_tag_link ct
                 join all_tags tg on ct.tag_id = tg.id
@@ -142,27 +147,35 @@ class Comment {
             )`, [JSON.stringify(tagIds)]
         );
         const comments = result.rows;
-        comments.forEach(tag => mapInPlace(tag));
+        comments.forEach(comment => mapInPlace(comment));
         return comments;
     }
 
     static async findByUser(userId) {
         const result = await db.query(/* sql */ `
-            select
-                c.id, c.text, c.user_id, c.analyzed, c.created_at, c.modified_at,
-                (select name from sentiments s where s.id = c.sentiment_id and c.sentiment_id is not null) as "sentiment",
-                (select name from emotions   e where e.id = c.emotion_id   and c.emotion_id   is not null) as "emotion",
-                (
-                    select json_agg(ct.tag_id order by ct.tag_id) 
-                    from comment_tag_link ct where ct.comment_id = c.id
-                ) as tag_ids
-            from comments c
+            ${commentSelect}
             where c.user_id = $1
             order by c.modified_at desc
             `, [userId]
         );
         const comments = result.rows;
-        comments.forEach(tag => mapInPlace(tag));
+        comments.forEach(comment => mapInPlace(comment));
+        return comments;
+    }
+
+    static async findByIdList(ids) {
+        const result = await db.query(/* sql */ `
+            with input_ids as (
+                select value::bigint as id, ordinality as sort_order
+                from json_array_elements_text($1::json) with ordinality
+            )
+            ${commentSelect}
+            join input_ids i on c.id = i.id
+            order by i.sort_order
+            `, [JSON.stringify(ids.map(id => +id))]
+        );
+        const comments = result.rows;
+        comments.forEach(comment => mapInPlace(comment));
         return comments;
     }
 }

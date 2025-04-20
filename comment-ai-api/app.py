@@ -1,6 +1,7 @@
 from flask import Flask, request, jsonify
 from transformers import pipeline
 from flask_cors import CORS
+import time
 
 app = Flask(__name__)
 CORS(app, resources={
@@ -20,30 +21,42 @@ sentiment_classifier = pipeline(
 
 @app.route('/api/analyze', methods=['POST'])
 def analyze_comments():
+    start_time = time.time()
+
     data = request.json
     comments = data.get('comments', [])
 
-    results = []
+    response = {
+        'elapsed_ms': 0,
+        'amount': len(comments)
+    }
+    comments_result = {}
     for comment in comments:
+        text = comment['text']
+
         # Анализ эмоций
-        print(emotion_classifier(comment))
-        emotion_result = emotion_classifier(comment)[0]
+        print(emotion_classifier(text))
+        emotion_result = emotion_classifier(text)[0]
         emotion = emotion_result['label']
         if emotion == 'no_emotion':
             emotion = 'neutral'
 
         # Анализ тональности
-        print(sentiment_classifier(comment))
-        sentiment_result = sentiment_classifier(comment)[0]
+        print(sentiment_classifier(text))
+        sentiment_result = sentiment_classifier(text)[0]
         sentiment = sentiment_result['label'].lower()
 
-        results.append({
-            'comment': comment,
+        comments_result[comment['id']] = {
+            'text': text,
             'sentiment': sentiment,
             'emotion': emotion
-        })
+        }
 
-    return jsonify(results)
+    response['comments'] = comments_result
+    processing_time_ms = (time.time() - start_time) * 1000
+    response['elapsed_ms'] = round(processing_time_ms, 3)
+
+    return jsonify(response)
 
 
 if __name__ == '__main__':

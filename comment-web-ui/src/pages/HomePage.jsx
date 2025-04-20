@@ -45,7 +45,6 @@ const HomePage = () => {
                 { comments: [text] },
                 { withCredentials: true }
             );
-            // alert(JSON.stringify(response.data));
             setEmotion(response.data[0].emotion);
             setSentiment(response.data[0].sentiment);
         } catch (err) {
@@ -72,8 +71,35 @@ const HomePage = () => {
         } catch (err) {
             alert(err.response?.data?.message || 'An error occurred');
         }
-
     };
+
+    const handleAnalyze = async ids => {
+        if (ids.length === 0) {
+            return; // todo warning
+        }
+        try {
+            const response = await axios.post(
+                `${process.env.REACT_APP_BACKEND_URL}/api/ai/analyze`,
+                { ids: ids },
+                { withCredentials: true }
+            );
+            const analyzedComments = response.data;
+            setAllComments(comments => {
+                const newComments = [...comments];
+                const amount = newComments.length;
+                for (let i = 0; i < amount; i++) {
+                    if (newComments[i].id in analyzedComments) {
+                        newComments[i] = analyzedComments[newComments[i].id];
+                    }
+                }
+                return newComments;
+            });
+        } catch (err) {
+            console.error(err);
+            alert(err.response?.data?.message || 'An error occurred');
+        }
+    }
+
 
     return <div className="home-page">
         <button onClick={handleLogout}>Выйти из профиля</button>
@@ -90,7 +116,11 @@ const HomePage = () => {
         <p>Настроение: {sentiment}</p>
         <br />
         <br />
-        <CommentList comments={allComments} onAddComment={handleAddComment} />
+        <CommentList
+            comments={allComments}
+            onAddComment={handleAddComment}
+            onAnalyze={handleAnalyze}
+        />
     </div>;
 };
 
