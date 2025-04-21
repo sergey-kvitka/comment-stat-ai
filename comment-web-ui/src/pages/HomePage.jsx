@@ -2,6 +2,7 @@ import { useNavigate } from 'react-router-dom';
 import { useEffect, useState } from 'react';
 import axios from 'axios';
 import CommentList from '../components/CommentList';
+import TagTree from '../components/TagTree';
 
 const HomePage = () => {
     const [comment, setComment] = useState('');
@@ -145,6 +146,7 @@ const HomePage = () => {
             onAddComment={handleAddComment}
             onAnalyze={handleAnalyze}
         />
+        <TagTree tags={allTags}/>
     </div>;
 };
 
