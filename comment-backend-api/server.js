@@ -6,6 +6,7 @@ const db = require('./db');
 const authRoutes = require('./routes/authRoutes');
 const aiRoutes = require('./routes/aiRoutes');
 const commentRoutes = require('./routes/commentRoutes');
+const tagRoutes = require('./routes/tagRoutes');
 const cookieParser = require('cookie-parser');
 
 function createApp() {
@@ -33,6 +34,7 @@ function configureRoutes(app) {
     app.use('/api/auth', authRoutes);
     app.use('/api/ai', aiRoutes);
     app.use('/api/comment', commentRoutes);
+    app.use('/api/tag', tagRoutes);
 }
 
 function getConfiguredPort() {
