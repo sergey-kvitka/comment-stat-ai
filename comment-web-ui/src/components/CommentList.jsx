@@ -106,7 +106,7 @@ const CommentList = ({ comments, tags, onAddComment, onAnalyze }) => {
             if (!tag) return null;
             return <Chip
                 key={tagId}
-                label={tag.text}
+                label={tag.name}
                 sx={{
                     background: tag.color,
                     color: 'white',
