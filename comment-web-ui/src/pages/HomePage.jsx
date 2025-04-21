@@ -8,24 +8,40 @@ const HomePage = () => {
     const [emotion, setEmotion] = useState('');
     const [sentiment, setSentiment] = useState('');
 
+    const [allTags, setAllTags] = useState([]);
     const [allComments, setAllComments] = useState([]);
 
     const navigate = useNavigate();
 
+    const loadTags = async () => {
+        try {
+            const response = await axios.get(
+                `${process.env.REACT_APP_BACKEND_URL}/api/tag/all`,
+                { withCredentials: true }
+            );
+            setAllTags(response.data.tags);
+        } catch (e) {
+            console.error(e.response?.status);
+            console.error(e);
+        }
+    }
+
+    const loadComments = async () => {
+        try {
+            const response = await axios.get(
+                `${process.env.REACT_APP_BACKEND_URL}/api/comment/all`,
+                { withCredentials: true }
+            );
+            setAllComments(response.data.comments);
+        } catch (e) {
+            console.error(e.response?.status);
+            console.error(e);
+        }
+    };
+
     useEffect(() => {
-        const loadComments = async () => {
-            try {
-                const response = await axios.get(
-                    `${process.env.REACT_APP_BACKEND_URL}/api/comment/all`,
-                    { withCredentials: true }
-                );
-                setAllComments(response.data.comments);
-            } catch (e) {
-                console.error(e.response?.status);
-                console.error(e);
-            }
-        };
         loadComments();
+        loadTags();
     }, []);
 
     const handleLogout = () => {
@@ -33,7 +49,7 @@ const HomePage = () => {
         navigate('/login');
     };
 
-    const sendToAnalyze = async () => {
+    const sendToAnalyze = async () => { // todo remove
         const text = (comment ?? '').trim();
         if (!text) {
             alert('Передан пустой комментарий!');
@@ -100,6 +116,13 @@ const HomePage = () => {
         }
     }
 
+    const tagsAsObject = tags => {
+        const tagsObj = {};
+        tags.forEach(tag => {
+            tagsObj[tag.id] = tag;
+        })
+        return tagsObj;
+    };
 
     return <div className="home-page">
         <button onClick={handleLogout}>Выйти из профиля</button>
@@ -118,7 +141,7 @@ const HomePage = () => {
         <br />
         <CommentList
             comments={allComments}
-            tags={{ /* todo: load tags */ }}
+            tags={tagsAsObject(allTags)}
             onAddComment={handleAddComment}
             onAnalyze={handleAnalyze}
         />
