@@ -67,11 +67,8 @@ class Comment {
         // removing tags that are not presented in parameter
         await db.query(/* sql */ `
             delete from comment_tag_link
-            where comment_id = $1 
-                and tag_id not in (
-                    select json_array_elements_text($2::json)::bigint
-                )
-            `, [comment.id, JSON.stringify(tagIds)]
+            where comment_id = $1 and tag_id != any($2::bigint[])
+            `, [comment.id, tagIds]
         );
         // saving tags to DB (with avoiding duplication)
         const updatedComment = Comment.addTags(comment, tagIds);
@@ -84,13 +81,13 @@ class Comment {
             insert into comment_tag_link (comment_id, tag_id)
             select
                 $1 as comment_id,
-                tags::bigint as tag_id
-            from json_array_elements_text($2::json) as tags
-            where tags::bigint not in (
+                tags as tag_id
+            from unnest($2::bigint[]) as tags
+            where tags not in (
                 select tag_id from comment_tag_link where comment_id = $1
             )
             returning tag_id
-            `, [id, JSON.stringify(tagIds)]
+            `, [id, tagIds]
         );
         await db.query(`update comments set modified_at = clock_timestamp() where id = $1`, [id]);
 
@@ -107,11 +104,9 @@ class Comment {
     static async deleteTags(comment, tagIds) {
         await db.query( /* sql */ `
             delete from comment_tag_link
-            where comment_id = $1
-                and tag_id in (
-                    select json_array_elements_text($2::json)::bigint
-                )`,
-            [comment.id, JSON.stringify(tagIds)]
+            where comment_id = $1 and tag_id = any($2::bigint[])
+            `,
+            [comment.id, tagIds]
         );
     }
 
@@ -132,9 +127,7 @@ class Comment {
     static async findByTags(tagIds) {
         const result = await db.query(/* sql */ `
             with recursive all_tags as (
-                select t.* from tags t where t.id = any(
-                    array(select json_array_elements_text($1::json)::bigint)
-                )
+                select t.* from tags t where t.id = any($1::bigint[])
                 union
                 select t2.* from tags t2
                 join all_tags tg on t2.parent_id = tg.id
@@ -144,7 +137,7 @@ class Comment {
                 select 1 from comment_tag_link ct
                 join all_tags tg on ct.tag_id = tg.id
                 where ct.comment_id = c.id
-            )`, [JSON.stringify(tagIds)]
+            )`, [tagIds]
         );
         const comments = result.rows;
         comments.forEach(comment => mapInPlace(comment));
@@ -167,12 +160,12 @@ class Comment {
         const result = await db.query(/* sql */ `
             with input_ids as (
                 select value::bigint as id, ordinality as sort_order
-                from json_array_elements_text($1::json) with ordinality
+                from unnest($1::bigint[]) with ordinality
             )
             ${commentSelect}
             join input_ids i on c.id = i.id
             order by i.sort_order
-            `, [JSON.stringify(ids.map(id => +id))]
+            `, [ids]
         );
         const comments = result.rows;
         comments.forEach(comment => mapInPlace(comment));
