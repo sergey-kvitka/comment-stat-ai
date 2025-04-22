@@ -178,6 +178,104 @@ class Comment {
         comments.forEach(comment => mapInPlace(comment));
         return comments;
     }
+
+    static async findByFilters({
+        userId, textSubstr, analyzed,
+        created = {}, modified = {}, include = {}, exclude = {}
+    }) {
+        const { from: createdFrom, to: createdTo } = created;
+        const { from: modifiedFrom, to: modifiedTo } = modified;
+        const { tagIds: tagsIn = [], emotions: emotionsIn = [], sentiments: sentimentsIn = [] } = include;
+        const { tagIds: tagsEx = [], emotions: emotionsEx = [], sentiments: sentimentsEx = [] } = exclude;
+
+        let query = (
+            /* sql */ `
+            ${commentSelect}
+            where 1 = 1`
+        );
+
+        const params = [];
+        const paramNo = inc => '$' + (params.length + inc);
+
+        if (userId) {
+            query += /* sql */ ` and c.user_id = ${paramNo(1)}`;
+            params.push(userId);
+        }
+
+        if (textSubstr) {
+            query += /* sql */ ` and lower(c.text) like lower($${params.length + 1})`;
+            params.push(`%${textSubstr}%`);
+        }
+
+        if (typeof analyzed === 'boolean') {
+            query += /* sql */ ` and c.analyzed = ${paramNo(1)}`;
+            params.push(analyzed);
+        }
+
+        if (createdFrom && createdTo) {
+            query += /* sql */ ` and c.created_at between ${paramNo(1)} and ${paramNo(2)}`;
+            params.push(createdFrom, createdTo);
+        }
+
+        if (modifiedFrom && modifiedTo) {
+            query += /* sql */ ` and c.modified_at between ${paramNo(1)} and ${paramNo(2)}`;
+            params.push(modifiedFrom, modifiedTo);
+        }
+
+        if (tagsIn.length) {
+            query += /* sql */ `
+                and exists (
+                    select 1 from comment_tag_link ct
+                    where ct.comment_id = c.id
+                    and ct.tag_id in (
+                        select id from tags where id = any(${paramNo(1)}::int[])
+                        union
+                        select id from tags where parent_id in (
+                            select id from tags where id = any(${paramNo(1)}::int[])
+                        )
+                    )
+                )`;
+            params.push(tagsIn);
+        }
+
+        if (tagsEx.length) {
+            query += /* sql */ `
+                and not exists (
+                    select 1 from comment_tag_link ct
+                    where ct.comment_id = c.id
+                    and ct.tag_id in (
+                        select id from tags where id = any(${paramNo(1)}::int[])
+                        union
+                        select id from tags where parent_id in (
+                            select id from tags where id = any(${paramNo(1)}::int[])
+                        )
+                    )
+                )` + '\n';
+            params.push(tagsEx);
+        }
+
+        const applyClassFilter = (array, name, incude = true) => {
+            if (!array.length) return;
+            query += /* sql */ ` and c.${name}_id ${incude ? 'in' : 'not in'} (select id from ${name}s where name = any(${paramNo(1)}::text[]))`;
+            params.push(array);
+        }
+        applyClassFilter(emotionsIn, 'emotion');
+        applyClassFilter(emotionsEx, 'emotion', false);
+        applyClassFilter(sentimentsIn, 'sentiment');
+        applyClassFilter(sentimentsEx, 'sentiment', false);
+
+        query = query.replace(
+            /* sql */ ` 1 = 1 and `,
+            ' '
+        );
+        console.table(params.map((p, idx) => ({ '№': `$${idx + 1}`, 'value': p })));
+        console.log(query);
+        return []; // todo: test
+        // const result = await db.query(query, params);
+        // const comments = result.rows;
+        // comments.forEach(comment => mapInPlace(comment));
+        // return comments;
+    }
 }
 
 module.exports = Comment;
