@@ -6,5 +6,6 @@ const router = express.Router();
 
 router.get('/all', authMiddleware.protect, commentController.all);
 router.post('/save', authMiddleware.protect, commentController.save);
+router.post('/getByFilters', authMiddleware.protect, commentController.getByFilters);
 
 module.exports = router;
