@@ -5,9 +5,6 @@ import CommentList from '../components/CommentList';
 import TagTree from '../components/TagTree';
 
 const HomePage = () => {
-    const [comment, setComment] = useState('');
-    const [emotion, setEmotion] = useState('');
-    const [sentiment, setSentiment] = useState('');
 
     const [allTags, setAllTags] = useState([]);
     const [allComments, setAllComments] = useState([]);
@@ -48,25 +45,6 @@ const HomePage = () => {
     const handleLogout = () => {
         // todo: logout endpoint
         navigate('/login');
-    };
-
-    const sendToAnalyze = async () => { // todo remove
-        const text = (comment ?? '').trim();
-        if (!text) {
-            alert('Передан пустой комментарий!');
-            return;
-        }
-        try {
-            const response = await axios.post(
-                `${process.env.REACT_APP_BACKEND_URL}/api/ai/analyze`,
-                { comments: [text] },
-                { withCredentials: true }
-            );
-            setEmotion(response.data[0].emotion);
-            setSentiment(response.data[0].sentiment);
-        } catch (err) {
-            alert(err.response?.data?.message || 'An error occurred');
-        }
     };
 
     const handleAddComment = async commentText => {
@@ -127,26 +105,13 @@ const HomePage = () => {
 
     return <div className="home-page">
         <button onClick={handleLogout}>Выйти из профиля</button>
-        <br />
-        <textarea
-            value={comment}
-            onChange={e => setComment(e.target.value)}
-            rows={3}
-            placeholder='Введите комментарий'
-        />
-        <br />
-        <button onClick={sendToAnalyze}>Анализировать</button>
-        <p>Эмоция: {emotion}</p>
-        <p>Настроение: {sentiment}</p>
-        <br />
-        <br />
         <CommentList
             comments={allComments}
             tags={tagsAsObject(allTags)}
             onAddComment={handleAddComment}
             onAnalyze={handleAnalyze}
         />
-        <TagTree tags={allTags}/>
+        <TagTree tags={allTags} />
     </div>;
 };
 
