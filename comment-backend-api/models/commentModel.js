@@ -112,10 +112,14 @@ class Comment {
 
     static async saveAll(comments) {
         const savedComments = [];
-        for (let comment of comments) {
-            const saved = await Comment.save(comment);
-            savedComments.push(saved);
-        }
+        await Promise.all(comments.map(async (comment, idx) => {
+            try {
+                savedComments[idx] = await Comment.save(comment);
+            } catch (err) {
+                console.error(`[Comment.saveAll] Error saving comment at index ${idx} (id=${comment.id}):`, err);
+                throw err;
+            }
+        }));
         return savedComments;
     }
 
