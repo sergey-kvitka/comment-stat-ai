@@ -32,3 +32,37 @@ exports.getByFilters = async (req, res) => {
     if (!comments.length) return res.status(204);
     res.status(200).json({ comments: comments });
 };
+
+exports.updateAll = async (req, res) => {
+    try {
+        const commentIds = req.body.commentIds;
+        let comments = await Comment.findByIdList(commentIds);
+        if (!comments.length) return res.status(204);
+
+        const userId = req.user.id;
+        if (comments.some(c => c.userId != userId)) {
+            // todo: maybe admin would be allowed to do it
+            return res.status(403).json({ message: "It is forbidden to edit other users' comments" });
+        }
+        const updates = req.body;
+        if (comments.length !== 1) updates.text = undefined;
+        comments.map(comment => {
+            ["text", "emotion", "sentiment"].forEach(column => {
+                if (updates[column]) comment[column] = updates[column];
+            });
+            const resultTags = new Set(comment.tagIds);
+            if (updates.tagsToAdd?.length) {
+                updates.tagsToAdd.forEach(tag => resultTags.add(tag));
+            }
+            if (updates.tagsToDelete?.length) {
+                updates.tagsToDelete.forEach(tag => resultTags.delete(tag));
+            }
+            comment.tagIds = Array.from(resultTags);
+            // comment.analyzed can't be updated here
+        });
+        comments = await Comment.saveAll(commentIds);
+        res.status(200).json({ comments: comments });
+    } catch (err) {
+        return res.status(500).json({ message: err.message });
+    }
+};
