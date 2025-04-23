@@ -9,9 +9,30 @@ const HomePage = () => {
     const [allTags, setAllTags] = useState([]);
     const [allComments, setAllComments] = useState([]);
 
+    // todo emotion and sentiment lists being loaded from server
+
     // comment filters
-    const [includedTags, setIncludedTags] = useState([]);
-    const [excludedTags, setExcludedTags] = useState([]);
+    const [
+        [includedTags, setIncludedTags],
+        [excludedTags, setExcludedTags],
+        [includedSentiments, setIncludedSentiments],
+        [excludedSentiments, setExcludedSentiments],
+        [includedEmotions, setIncludedEmotions],
+        [excludedEmotions, setExcludedEmotions],
+    ] = [
+            useState([]),
+            useState([]),
+            useState([]),
+            useState([]),
+            useState([]),
+            useState([]),
+        ];
+    const [textSubstr, setTextSubstr] = useState();
+    const [analyzed, setAnalyzed] = useState();
+    const [createdFrom, setCreatedFrom] = useState();
+    const [modifiedFrom, setModifiedFrom] = useState();
+    const [createdTo, setCreatedTo] = useState();
+    const [modifiedTo, setModifiedTo] = useState();
 
     const navigate = useNavigate();
 
@@ -40,6 +61,35 @@ const HomePage = () => {
             console.error(e);
         }
     };
+
+    const loadCommentByFilters = async () => {
+        try {
+            const response = await axios.post(
+                `${process.env.REACT_APP_BACKEND_URL}/api/comment/getByFilters`,
+                {
+                    textSubstr: textSubstr,
+                    analyzed: analyzed,
+                    created: { from: createdFrom, to: createdTo, },
+                    modified: { from: modifiedFrom, to: modifiedTo, },
+                    include: {
+                        tagIds: includedTags.map(tag => tag.id),
+                        emotions: includedEmotions,
+                        sentiments: includedSentiments,
+                    },
+                    exclude: {
+                        tagIds: excludedTags.map(tag => tag.id),
+                        emotions: excludedEmotions,
+                        sentiments: excludedSentiments,
+                    },
+                },
+                { withCredentials: true }
+            );
+            setAllComments(response.data.comments);
+        } catch (e) {
+            console.error(e.response?.status);
+            console.error(e);
+        }
+    }
 
     useEffect(() => {
         loadComments();
@@ -125,6 +175,7 @@ const HomePage = () => {
 
     return <div className="home-page">
         <button onClick={handleLogout}>Выйти из профиля</button>
+        <button onClick={loadCommentByFilters}>Применить фильтры</button>
         <CommentList
             comments={allComments}
             tags={tagsAsObject(allTags)}

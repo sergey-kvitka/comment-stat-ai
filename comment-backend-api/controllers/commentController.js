@@ -6,6 +6,7 @@ exports.all = async (req, res) => {
     try {
         comments = await Comment.findByUser(req.user.id);
     } catch (err) {
+        console.error(err);
         return res.status(500).json({ message: err.message });
     }
     if (!comments.length) return res.status(204);
@@ -18,6 +19,7 @@ exports.save = async (req, res) => {
         const comment = await Comment.save({ ...req.body.comment, userId: req.user.id });
         res.status(200).json({ comment: comment });
     } catch (err) {
+        console.error(err);
         res.status(500).json({ message: err.message });
     }
 }
@@ -27,6 +29,7 @@ exports.getByFilters = async (req, res) => {
     try {
         comments = await Comment.findByFilters({ ...req.body, userId: req.user.id });
     } catch (err) {
+        console.error(err);
         return res.status(500).json({ message: err.message });
     }
     if (!comments.length) return res.status(204);
@@ -63,6 +66,7 @@ exports.updateAll = async (req, res) => {
         comments = await Comment.saveAll(commentIds);
         res.status(200).json({ comments: comments });
     } catch (err) {
+        console.error(err);
         return res.status(500).json({ message: err.message });
     }
 };
