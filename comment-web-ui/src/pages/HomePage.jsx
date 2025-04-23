@@ -9,6 +9,10 @@ const HomePage = () => {
     const [allTags, setAllTags] = useState([]);
     const [allComments, setAllComments] = useState([]);
 
+    // comment filters
+    const [includedTags, setIncludedTags] = useState([]);
+    const [excludedTags, setExcludedTags] = useState([]);
+
     const navigate = useNavigate();
 
     const loadTags = async () => {
@@ -103,6 +107,22 @@ const HomePage = () => {
         return tagsObj;
     };
 
+    const handleTagClick = tag => {
+        // console.log('clicking tag: ' + JSON.stringify(tag));
+        if (!includedTags.some(t => t.id === tag.id)) {
+            setIncludedTags(prev => [...prev, tag]);
+        }
+    };
+
+    useEffect(() => {
+        console.table(includedTags);
+    }, [includedTags]);
+
+    const handleTagEdit = tag => {
+        console.log('editing tag: ' + JSON.stringify(tag));
+        // todo modal with tag editing
+    };
+
     return <div className="home-page">
         <button onClick={handleLogout}>Выйти из профиля</button>
         <CommentList
@@ -111,7 +131,11 @@ const HomePage = () => {
             onAddComment={handleAddComment}
             onAnalyze={handleAnalyze}
         />
-        <TagTree tags={allTags} />
+        <TagTree
+            tags={allTags}
+            onTagClick={handleTagClick}
+            onTagEdit={handleTagEdit}
+        />
     </div>;
 };
 

@@ -10,7 +10,7 @@ import {
 } from '@mui/material';
 import { Edit as EditIcon, ExpandMore, ChevronRight } from '@mui/icons-material';
 
-const TagItem = ({ tag, level = 0, onTagClick, onEditClick }) => {
+const TagItem = ({ tag, level = 0, onTagClick, onTagEdit }) => {
     const [hovered, setHovered] = useState(false);
     const [expanded, setExpanded] = useState(true);
     const hasChildren = tag.children && tag.children.length > 0;
@@ -39,7 +39,7 @@ const TagItem = ({ tag, level = 0, onTagClick, onEditClick }) => {
                 {!hasChildren && <Box sx={{ width: 32 }} />}
 
                 <ListItemButton
-                    onClick={() => onTagClick(tag)}
+                    onClick={() => onTagClick({ ...tag, children: undefined })}
                     sx={{ px: 1, flexGrow: 0, borderRadius: '5px' }}
                 >
                     <Chip
@@ -59,10 +59,10 @@ const TagItem = ({ tag, level = 0, onTagClick, onEditClick }) => {
 
                 <IconButton
                     size="small"
-                    onClick={() => onEditClick(tag)}
+                    onClick={() => onTagEdit({ ...tag, children: undefined })}
                     sx={{
                         ml: 'auto',
-                        opacity: hovered ? 0.7 : 0,
+                        opacity: hovered ? 0.6 : 0,
                         '&:hover': { opacity: 1 },
                         transition: 'opacity 0.2s'
                     }}
@@ -80,7 +80,7 @@ const TagItem = ({ tag, level = 0, onTagClick, onEditClick }) => {
                                 tag={child}
                                 level={level + 1}
                                 onTagClick={onTagClick}
-                                onEditClick={onEditClick}
+                                onTagEdit={onTagEdit}
                             />
                         ))}
                     </List>
@@ -99,11 +99,8 @@ const buildTree = (tags, parentId = null) => {
         }));
 };
 
-const TagTree = ({ tags = [] }) => {
+const TagTree = ({ tags = [], onTagClick, onTagEdit }) => {
     const tagTree = buildTree(tags);
-
-    const onTagClick = tag => {};
-    const onEditClick = tag => {};
 
     return <List
         sx={{
@@ -116,8 +113,8 @@ const TagTree = ({ tags = [] }) => {
             <TagItem
                 key={tag.id}
                 tag={tag}
-                onTagClick={() => onTagClick(tag)}
-                onEditClick={() => onEditClick(tag)}
+                onTagClick={onTagClick}
+                onTagEdit={onTagEdit}
             />
         ))}
     </List>;
