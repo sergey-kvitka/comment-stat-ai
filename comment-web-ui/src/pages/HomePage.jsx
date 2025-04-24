@@ -34,6 +34,9 @@ const HomePage = () => {
     const [createdTo, setCreatedTo] = useState();
     const [modifiedTo, setModifiedTo] = useState();
 
+    const [isFilterDialogOpen, setIsFilterDialogOpen] = useState(false);
+    const [isFilterApplying, setIsFilterApplying] = useState(false);
+
     const navigate = useNavigate();
 
     const loadTags = async () => {
@@ -101,6 +104,43 @@ const HomePage = () => {
         navigate('/login');
     };
 
+    const resetFilters = () => {
+        setIncludedTags([]);
+        setExcludedTags([]);
+        setIncludedSentiments([]);
+        setExcludedSentiments([]);
+        setIncludedEmotions([]);
+        setExcludedEmotions([]);
+        setTextSubstr(null);
+        setAnalyzed(null);
+        setCreatedFrom(null);
+        setModifiedFrom(null);
+        setCreatedTo(null);
+        setModifiedTo(null);
+    }
+
+    const handleFilterDialogClose = () => {
+        setIsFilterDialogOpen(false);
+        resetFilters();
+    };
+
+    const handleFilterApplying = async () => {
+        // check if any of filters is valid
+        if (
+            !([includedTags, includedSentiments, includedEmotions,
+                excludedTags, excludedSentiments, excludedEmotions].some(arr => !!(arr?.length))
+                || textSubstr
+                || analyzed !== null
+                || (createdFrom && createdTo)
+                || (modifiedFrom && modifiedTo)
+            )
+        ) {
+            console.warn('Filters are empty, nothing to apply');
+            return;
+        }
+        // todo get response & close dialog
+    };
+
     const handleAddComment = async commentText => {
         try {
             const response = await axios.post(
@@ -147,7 +187,7 @@ const HomePage = () => {
             console.error(err);
             alert(err.response?.data?.message || 'An error occurred');
         }
-    }
+    };
 
     const tagsAsObject = tags => {
         const tagsObj = {};
@@ -158,7 +198,6 @@ const HomePage = () => {
     };
 
     const handleTagClick = tag => {
-        // console.log('clicking tag: ' + JSON.stringify(tag));
         if (!includedTags.some(t => t.id === tag.id)) {
             setIncludedTags(prev => [...prev, tag]);
         }
@@ -187,6 +226,20 @@ const HomePage = () => {
             onTagClick={handleTagClick}
             onTagEdit={handleTagEdit}
         />
+        <Dialog open={isFilterDialogOpen} onClose={handleFilterDialogClose}>
+            <DialogTitle>Поиск комментариев</DialogTitle>
+            <DialogContent>{/* todo: filter settings form */}</DialogContent>
+            <DialogActions>
+                <Button onClick={handleFilterDialogClose}>Отмена</Button>
+                <Button
+                    onClick={handleFilterApplying}
+                    variant="contained"
+                    disabled={!newCommentText.trim() || isLoading}
+                >
+                    {isFilterApplying ? <CircularProgress size={24} /> : 'Применить'}
+                </Button>
+            </DialogActions>
+        </Dialog>
     </div>;
 };
 
