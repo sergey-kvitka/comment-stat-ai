@@ -1,13 +1,13 @@
 const db = require('../db');
-const util = require('../services/util');
+const entityMapService = require('../services/entityMapService');
 
 /** Maps <comment> object to required structure */
 const mapInPlace = comment => {
     if (comment.tag_ids === null) comment.tag_ids = [];
-    util.rename(comment, 'user_id', 'userId');
-    util.rename(comment, 'tag_ids', 'tagIds');
-    util.rename(comment, 'created_at', 'createdStr');
-    util.rename(comment, 'modified_at', 'modifiedStr');
+    entityMapService.rename(comment, 'user_id', 'userId');
+    entityMapService.rename(comment, 'tag_ids', 'tagIds');
+    entityMapService.rename(comment, 'created_at', 'createdStr');
+    entityMapService.rename(comment, 'modified_at', 'modifiedStr');
 }
 
 const commentSelect = /* sql */ `
@@ -46,6 +46,7 @@ const updateCommentSql = `update comments set
     where id = $6 ` + commentReturning;
 
 class Comment {
+
     static async save({ id, text, userId, sentiment, emotion, analyzed, tagIds }) {
         let result;
         if (id === null) {

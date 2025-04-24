@@ -35,6 +35,7 @@ yarn-error.log*
 
 # tests
 */coverage
+devtest.js
 
 # build
 */build

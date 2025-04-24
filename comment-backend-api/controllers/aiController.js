@@ -1,3 +1,4 @@
+const commentService = require('../services/commentService');
 const Comment = require('../models/commentModel');
 require('dotenv').config();
 
@@ -32,19 +33,15 @@ exports.analyze = async (req, res) => {
                 analyzed: true
             };
             try {
-                const tags = comment.tagIds;
-                comment.tagIds = undefined;
-                indexed[id] = await Comment.save(comment);
-                indexed[id].tagIds = tags;
-            } catch (error) {
-                console.error(`Failed to save comment ${id}:`, error);
-                throw error;
+                indexed[id] = await commentService.processWithoutTags(comment, async c => await Comment.save(c));
+            } catch (err) {
+                console.error(`Failed to save comment ${id}:`, err);
+                throw err;
             }
         }));
-
         res.status(200).json(indexed);
-    } catch (e) {
-        console.error('Error making external request:', e);
+    } catch (err) {
+        console.error('Error making external request:', err);
         res.status(500).json({ error: 'External API request failed' });
     }
 };

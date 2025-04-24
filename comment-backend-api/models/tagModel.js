@@ -1,10 +1,10 @@
 const db = require('../db');
-const util = require('../services/util');
+const entityMapService = require('../services/entityMapService');
 
 /** Maps <tag> object to required structure */
 const mapInPlace = tag => {
-    util.rename(tag, 'user_id', 'userId');
-    util.rename(tag, 'parent_id', 'parentId');
+    entityMapService.rename(tag, 'user_id', 'userId');
+    entityMapService.rename(tag, 'parent_id', 'parentId');
 }
 
 const tagsToHierarchy = tags => {
