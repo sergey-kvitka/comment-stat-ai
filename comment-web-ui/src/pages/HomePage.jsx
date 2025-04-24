@@ -3,6 +3,10 @@ import { useEffect, useState } from 'react';
 import axios from 'axios';
 import CommentList from '../components/CommentList';
 import TagTree from '../components/TagTree';
+import {
+    Button, Dialog, DialogActions, DialogContent, DialogTitle, CircularProgress, Stack, RadioGroup, FormControlLabel, Radio,
+    Chip
+} from '@mui/material';
 
 const HomePage = () => {
 
@@ -34,6 +38,7 @@ const HomePage = () => {
     const [createdTo, setCreatedTo] = useState();
     const [modifiedTo, setModifiedTo] = useState();
 
+    const [includeTags, setIncludeTags] = useState(true);
     const [isFilterDialogOpen, setIsFilterDialogOpen] = useState(false);
     const [isFilterApplying, setIsFilterApplying] = useState(false);
 
@@ -45,7 +50,17 @@ const HomePage = () => {
                 `${process.env.REACT_APP_BACKEND_URL}/api/tag/all`,
                 { withCredentials: true }
             );
-            setAllTags(response.data.tags);
+            // todo: setAllTags(response.data.tags);
+            // todo for test many tags
+            setAllTags([
+                ...response.data.tags,
+                ...(response.data.tags.map(t => ({
+                    ...t,
+                    id: +t.id * 10,
+                    name: '~ ' + t.name,
+                    color: 'dodgerblue'
+                })))
+            ]);
         } catch (e) {
             console.error(e.response?.status);
             console.error(e);
@@ -121,7 +136,7 @@ const HomePage = () => {
 
     const handleFilterDialogClose = () => {
         setIsFilterDialogOpen(false);
-        resetFilters();
+        // resetFilters();
     };
 
     const handleFilterApplying = async () => {
@@ -197,9 +212,16 @@ const HomePage = () => {
         return tagsObj;
     };
 
+    const handleTagIncludeSwitch = event => {
+        setIncludeTags(event.target.value === 'true');
+    }
+
     const handleTagClick = tag => {
-        if (!includedTags.some(t => t.id === tag.id)) {
-            setIncludedTags(prev => [...prev, tag]);
+        const [tagList, setTagList] = (
+            includeTags ? [includedTags, setIncludedTags] : [excludedTags, setExcludedTags]
+        );
+        if (!tagList.some(t => t.id === tag.id)) {
+            setTagList(prev => [...prev, tag]);
         }
     };
 
@@ -215,6 +237,7 @@ const HomePage = () => {
     return <div className="home-page">
         <button onClick={handleLogout}>Выйти из профиля</button>
         <button onClick={loadCommentByFilters}>Применить фильтры</button>
+        <button onClick={() => setIsFilterDialogOpen(true)}>Фильтры</button>
         <CommentList
             comments={allComments}
             tags={tagsAsObject(allTags)}
@@ -226,15 +249,77 @@ const HomePage = () => {
             onTagClick={handleTagClick}
             onTagEdit={handleTagEdit}
         />
-        <Dialog open={isFilterDialogOpen} onClose={handleFilterDialogClose}>
-            <DialogTitle>Поиск комментариев</DialogTitle>
-            <DialogContent>{/* todo: filter settings form */}</DialogContent>
+        <Dialog
+            open={isFilterDialogOpen}
+            onClose={handleFilterDialogClose}
+            scroll='paper'
+            maxWidth={'90vw'}
+        >
+            <DialogTitle align="center">Поиск комментариев</DialogTitle>
+            <DialogContent>
+                <Stack direction="row" spacing={2}>
+                    <TagTree
+                        tags={allTags}
+                        onTagClick={handleTagClick}
+                        onTagEdit={null}
+                    />
+                    <Stack direction="column">
+                        <RadioGroup
+                            name="tag-include-exclude"
+                            value={includeTags}
+                            onChange={handleTagIncludeSwitch}
+                        >
+                            <Stack direction="row" sx={{ width: '50vw' }}>
+                                <FormControlLabel
+                                    value={true}
+                                    control={<Radio />}
+                                    label="Включить:"
+                                />
+                                <Stack direction="row" flexWrap="wrap" spacing={0.5}>
+                                    {includedTags.map(tag => (
+                                        <Chip
+                                            key={tag.id}
+                                            label={tag.name}
+                                            size="small"
+                                            sx={{
+                                                backgroundColor: tag.color,
+                                                marginBottom: '5px !important',
+                                                color: 'white',
+                                            }}
+                                        />
+                                    ))}
+                                </Stack>
+                            </Stack>
+                            <Stack direction="row" sx={{ width: '50vw' }}>
+                                <FormControlLabel
+                                    value={false}
+                                    control={<Radio />}
+                                    label="Исключить:"
+                                />
+                                <Stack direction="row" flexWrap="wrap" spacing={0.5}>
+                                    {excludedTags.map(tag => (
+                                        <Chip
+                                            key={tag.id}
+                                            label={tag.name}
+                                            size="small"
+                                            sx={{
+                                                backgroundColor: tag.color,
+                                                marginBottom: '5px !important',
+                                                color: 'white',
+                                            }}
+                                        />
+                                    ))}
+                                </Stack>
+                            </Stack>
+                        </RadioGroup>
+                    </Stack>
+                </Stack>
+            </DialogContent>
             <DialogActions>
                 <Button onClick={handleFilterDialogClose}>Отмена</Button>
                 <Button
                     onClick={handleFilterApplying}
                     variant="contained"
-                    disabled={!newCommentText.trim() || isLoading}
                 >
                     {isFilterApplying ? <CircularProgress size={24} /> : 'Применить'}
                 </Button>

@@ -56,8 +56,8 @@ const TagItem = ({ tag, level = 0, onTagClick, onTagEdit }) => {
                         }}
                     />
                 </ListItemButton>
-
-                <IconButton
+                {
+                    onTagEdit && <IconButton
                     size="small"
                     onClick={() => onTagEdit({ ...tag, children: undefined })}
                     sx={{
@@ -69,6 +69,7 @@ const TagItem = ({ tag, level = 0, onTagClick, onTagEdit }) => {
                 >
                     <EditIcon fontSize="small" />
                 </IconButton>
+                }
             </ListItem>
 
             {hasChildren && (
@@ -106,7 +107,9 @@ const TagTree = ({ tags = [], onTagClick, onTagEdit }) => {
         sx={{
             width: '100%',
             bgcolor: 'background.paper',
-            p: 1
+            p: 1,
+            overflowY: 'scroll',
+            maxHeight: '70vh'
         }}
     >
         {tagTree.map(tag => (
