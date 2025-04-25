@@ -21,7 +21,7 @@ sentiment_classifier = pipeline(
 
 @app.route('/api/analyze', methods=['POST'])
 def analyze_comments():
-    start_time = time.time()
+    start_time = time.perf_counter()
 
     data = request.json
     comments = data.get('comments', [])
@@ -53,7 +53,8 @@ def analyze_comments():
         }
 
     response['comments'] = comments_result
-    processing_time_ms = (time.time() - start_time) * 1000
+    end_time = time.perf_counter()
+    processing_time_ms = (end_time - start_time) * 1000
     response['elapsed_ms'] = round(processing_time_ms, 3)
 
     return jsonify(response)
