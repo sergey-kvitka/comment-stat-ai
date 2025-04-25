@@ -108,7 +108,7 @@ const TagTree = ({ tags = [], onTagClick, onTagEdit }) => {
             width: '100%',
             bgcolor: 'background.paper',
             p: 1,
-            overflowY: 'scroll',
+            overflowY: 'auto',
             maxHeight: '70vh'
         }}
     >

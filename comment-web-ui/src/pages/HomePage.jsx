@@ -1,12 +1,15 @@
 import { useNavigate } from 'react-router-dom';
-import { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback, useMemo } from 'react';
 import axios from 'axios';
 import CommentList from '../components/CommentList';
 import TagTree from '../components/TagTree';
 import {
-    Button, Dialog, DialogActions, DialogContent, DialogTitle, CircularProgress, Stack, RadioGroup, FormControlLabel, Radio, Chip,
-    TextField, FormControl, FormLabel,
+    Button, Dialog, DialogActions, DialogContent, DialogTitle, CircularProgress,
+    Stack, RadioGroup, FormControlLabel, Radio, Chip, TextField, FormControl, FormLabel,
 } from '@mui/material';
+
+const MemoizedTagTree = React.memo(TagTree);
+const MemoizedCommentList = React.memo(CommentList);
 
 const HomePage = () => {
 
@@ -41,7 +44,6 @@ const HomePage = () => {
     const [includeTagsSwitch, setIncludeTagsSwitch] = useState(true);
     const [isFilterDialogOpen, setIsFilterDialogOpen] = useState(false);
     const [isFilterApplying, setIsFilterApplying] = useState(false);
-    const [validFilters, setValidFilters] = useState(false);
 
     const navigate = useNavigate();
 
@@ -50,51 +52,38 @@ const HomePage = () => {
         loadTags();
     }, []);
 
-    // useEffect(() => {
-    //     setValidFilters(
-    //         textSubstr
-    //         || analyzed !== 'null'
-    //         || (createdFrom && createdTo)
-    //         || (modifiedFrom && modifiedTo)
-    //         || [
-    //             includedTags, includedSentiments, includedEmotions,
-    //             excludedTags, excludedSentiments, excludedEmotions
-    //         ].some(
-    //             arr => Boolean(arr?.length)
-    //         )
-    //     );
-    // }, [
-    //     includedTags, includedSentiments, includedEmotions, excludedTags, excludedSentiments, excludedEmotions,
-    //     textSubstr, analyzed, createdFrom, modifiedFrom, createdTo, modifiedTo
-    // ]);
+    const removeTagFromList = useCallback((id, setNewList) => {
+        setNewList(prev => [...prev.filter(tag => tag.id !== id)]);
+    }, []);
 
-    const removeTagFromList = (id, setNewList) => {
-        setNewList(prev => [...prev.filter(tag => tag.id !== id)])
-    };
+    const renderTag = useCallback((tag, setTagList) => (
+        <Chip
+            key={tag.id}
+            label={tag.name}
+            size="small"
+            onClick={() => removeTagFromList(tag.id, setTagList)}
+            sx={{
+                backgroundColor: tag.color,
+                marginBottom: '5px !important',
+                color: 'white',
+            }}
+        />
+    ), [removeTagFromList]);
 
-    const loadTags = async () => {
+    const loadTags = useCallback(async () => {
         try {
             const response = await axios.get(
                 `${process.env.REACT_APP_BACKEND_URL}/api/tag/all`,
                 { withCredentials: true }
             );
-            // todo for test many tags // setAllTags(response.data.tags);
-            setAllTags([
-                ...response.data.tags,
-                ...(response.data.tags.map(t => ({
-                    ...t,
-                    id: +t.id * 10,
-                    name: '~ ' + t.name,
-                    color: 'dodgerblue'
-                })))
-            ]);
+            setAllTags(response.data.tags);
         } catch (err) {
             console.error(err.response?.status);
             console.error(err);
         }
-    }
+    }, []);
 
-    const loadComments = async () => {
+    const loadComments = useCallback(async () => {
         try {
             const response = await axios.get(
                 `${process.env.REACT_APP_BACKEND_URL}/api/comment/all`,
@@ -105,9 +94,9 @@ const HomePage = () => {
             console.error(err.response?.status);
             console.error(err);
         }
-    };
+    }, []);
 
-    const getCommentsByFilters = async textSubstr => {
+    const getCommentsByFilters = useCallback(async () => {
         const response = await axios.post(
             `${process.env.REACT_APP_BACKEND_URL}/api/comment/getByFilters`,
             {
@@ -129,14 +118,17 @@ const HomePage = () => {
             { withCredentials: true }
         );
         return response.data.comments;
-    }
+    }, [
+        textSubstr, analyzed, createdFrom, createdTo, modifiedFrom, modifiedTo,
+        excludedEmotions, excludedSentiments, excludedTags, includedEmotions, includedSentiments, includedTags
+    ]);
 
-    const handleLogout = () => {
+    const handleLogout = useCallback(() => {
         // todo: logout endpoint
         navigate('/login');
-    };
+    }, [navigate]);
 
-    const resetFilters = () => {
+    const resetFilters = useCallback(() => {
         setIncludedTags([]);
         setExcludedTags([]);
         setIncludedSentiments([]);
@@ -149,14 +141,13 @@ const HomePage = () => {
         setModifiedFrom(null);
         setCreatedTo(null);
         setModifiedTo(null);
-    }
+    }, []);
 
-    const handleFilterDialogClose = () => {
+    const handleFilterDialogClose = useCallback(() => {
         setIsFilterDialogOpen(false);
-        // resetFilters();
-    };
+    }, []);
 
-    const handleFilterApplying = async textSubstr => {
+    const handleFilterApplying = useCallback(async () => {
         if (isFilterApplying) return;
         if (!(analyzed !== 'null'
             || textSubstr
@@ -167,14 +158,14 @@ const HomePage = () => {
                 excludedTags, excludedSentiments, excludedEmotions
             ].some(
                 arr => Boolean(arr?.length)
-            ))
-        ) {
-            console.warn('Filters are empty, nothing to apply');
+            )
+        )) {
+            alert('Filters are empty, nothing to apply');
             return;
         }
         setIsFilterApplying(true);
         try {
-            const comments = await getCommentsByFilters(textSubstr);
+            const comments = await getCommentsByFilters();
             setAllComments([...comments]);
             handleFilterDialogClose();
         } catch (err) {
@@ -188,9 +179,13 @@ const HomePage = () => {
         } finally {
             setIsFilterApplying(false);
         }
-    };
+    }, [
+        textSubstr, analyzed, createdFrom, createdTo, modifiedFrom, modifiedTo,
+        excludedEmotions, excludedSentiments, excludedTags, includedEmotions, includedSentiments, includedTags,
+        getCommentsByFilters, handleFilterDialogClose, isFilterApplying
+    ]);
 
-    const handleAddComment = async commentText => {
+    const handleAddComment = useCallback(async commentText => {
         try {
             const response = await axios.post(
                 `${process.env.REACT_APP_BACKEND_URL}/api/comment/save`,
@@ -209,11 +204,11 @@ const HomePage = () => {
         } catch (err) {
             alert(err.response?.data?.message || 'An error occurred');
         }
-    };
+    }, []);
 
-    const handleAnalyze = async ids => {
+    const handleAnalyze = useCallback(async ids => {
         if (ids.length === 0) {
-            return; // todo warning
+            alert('Вы не выбрали ни одного комментария для анализа');
         }
         try {
             const response = await axios.post(
@@ -236,53 +231,55 @@ const HomePage = () => {
             console.error(err);
             alert(err.response?.data?.message || 'An error occurred');
         }
-    };
+    }, []);
 
-    const tagsAsObject = tags => {
+    const tagsAsObject = useMemo(() => {
         const tagsObj = {};
-        tags.forEach(tag => {
+        allTags.forEach(tag => {
             tagsObj[tag.id] = tag;
-        })
+        });
         return tagsObj;
-    };
+    }, [allTags]);
 
-    const handleTagIncludeSwitch = event => {
+    const handleTagIncludeSwitch = useCallback(event => {
         setIncludeTagsSwitch(event.target.value === 'true');
-    }
+    }, []);
 
-    const handleTagClick = tag => {
+    const handleTagClick = useCallback(tag => {
         const [tagList, setTagList] = (
             includeTagsSwitch ? [includedTags, setIncludedTags] : [excludedTags, setExcludedTags]
         );
         if (!tagList.some(t => t.id === tag.id)) {
             setTagList(prev => [...prev, tag]);
         }
-    };
+    }, [excludedTags, includeTagsSwitch, includedTags]);
 
-    useEffect(() => {
-        console.table(includedTags);
-    }, [includedTags]);
-
-    const handleTagEdit = tag => {
+    const handleTagEdit = useCallback(tag => {
         console.log('editing tag: ' + JSON.stringify(tag));
-        // todo modal with tag editing
-    };
+    }, []);
+
+    const handleTextChange = useCallback((e) => {
+        setTextSubstr(e.target.value);
+    }, []);
 
     return <div className="home-page">
         <button onClick={handleLogout}>Выйти из профиля</button>
         <button onClick={handleFilterApplying}>Применить фильтры</button>
         <button onClick={() => setIsFilterDialogOpen(true)}>Фильтры</button>
-        <CommentList
+
+        <MemoizedCommentList
             comments={allComments}
-            tags={tagsAsObject(allTags)}
+            tags={tagsAsObject}
             onAddComment={handleAddComment}
             onAnalyze={handleAnalyze}
         />
-        <TagTree
+
+        <MemoizedTagTree
             tags={allTags}
             onTagClick={handleTagClick}
             onTagEdit={handleTagEdit}
         />
+
         <Dialog
             open={isFilterDialogOpen}
             onClose={handleFilterDialogClose}
@@ -292,7 +289,7 @@ const HomePage = () => {
             <DialogTitle align="center">Поиск комментариев</DialogTitle>
             <DialogContent>
                 <Stack direction="row" spacing={2}>
-                    <TagTree
+                    <MemoizedTagTree
                         tags={allTags}
                         onTagClick={handleTagClick}
                         onTagEdit={null}
@@ -306,33 +303,25 @@ const HomePage = () => {
                             {[
                                 { formValue: true, formLabel: 'Включить:', tagList: includedTags, setTagList: setIncludedTags },
                                 { formValue: false, formLabel: 'Исключить:', tagList: excludedTags, setTagList: setExcludedTags },
-                            ].map(row => <
-                                Stack direction="row" sx={{ width: '50vw' }} key={row.formLabel}
-                            >
-                                <FormControlLabel value={row.formValue} label={row.formLabel} control={<Radio />} />
-                                <Stack direction="row" flexWrap="wrap" spacing={0.5}>
-                                    {[...row.tagList].map(tag => (
-                                        <Chip
-                                            key={tag.id}
-                                            label={tag.name}
-                                            size="small"
-                                            onClick={() => removeTagFromList(tag.id, row.setTagList)}
-                                            sx={{
-                                                backgroundColor: tag.color,
-                                                marginBottom: '5px !important',
-                                                color: 'white',
-                                            }}
-                                        />
-                                    ))}
+                            ].map(row => (
+                                <Stack direction="row" sx={{ width: '50vw' }} key={row.formLabel}>
+                                    <FormControlLabel value={row.formValue} label={row.formLabel} control={<Radio />} />
+                                    <Stack direction="row" flexWrap="wrap" spacing={0.5}>
+                                        {row.tagList.map(tag => renderTag(tag, row.setTagList))}
+                                    </Stack>
                                 </Stack>
-                            </Stack>)}
+                            ))}
                         </RadioGroup>
+
                         <TextField
                             label="Поиск по тексту комментария"
                             variant="outlined"
                             value={textSubstr}
-                            onChange={e => setTextSubstr(e.target.value)}
+                            onChange={handleTextChange}
+                            fullWidth
+                            margin="normal"
                         />
+
                         <FormControl>
                             <FormLabel id="filter-analyzed">Искать комментарии, которые:</FormLabel>
                             <RadioGroup row
@@ -353,7 +342,6 @@ const HomePage = () => {
                 <Button
                     onClick={() => handleFilterApplying(textSubstr)}
                     variant="contained"
-                    // disabled={!validFilters || isFilterApplying}
                 >
                     {isFilterApplying ? <CircularProgress size={24} /> : 'Применить'}
                 </Button>
