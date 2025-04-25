@@ -4,7 +4,8 @@ import axios from 'axios';
 import CommentList from '../components/CommentList';
 import TagTree from '../components/TagTree';
 import {
-    Button, Dialog, DialogActions, DialogContent, DialogTitle, CircularProgress, Stack, RadioGroup, FormControlLabel, Radio, Chip
+    Button, Dialog, DialogActions, DialogContent, DialogTitle, CircularProgress, Stack, RadioGroup, FormControlLabel, Radio, Chip,
+    TextField, FormControl, FormLabel,
 } from '@mui/material';
 
 const HomePage = () => {
@@ -30,8 +31,8 @@ const HomePage = () => {
             useState([]),
             useState([]),
         ];
-    const [textSubstr, setTextSubstr] = useState();
-    const [analyzed, setAnalyzed] = useState();
+    const [textSubstr, setTextSubstr] = useState('');
+    const [analyzed, setAnalyzed] = useState('null');
     const [createdFrom, setCreatedFrom] = useState();
     const [modifiedFrom, setModifiedFrom] = useState();
     const [createdTo, setCreatedTo] = useState();
@@ -49,23 +50,23 @@ const HomePage = () => {
         loadTags();
     }, []);
 
-    useEffect(() => {
-        setValidFilters(
-            textSubstr
-            || analyzed !== null
-            || (createdFrom && createdTo)
-            || (modifiedFrom && modifiedTo)
-            || [
-                includedTags, includedSentiments, includedEmotions,
-                excludedTags, excludedSentiments, excludedEmotions
-            ].some(
-                arr => Boolean(arr?.length)
-            )
-        );
-    }, [
-        includedTags, includedSentiments, includedEmotions, excludedTags, excludedSentiments, excludedEmotions,
-        textSubstr, analyzed, createdFrom, modifiedFrom, createdTo, modifiedTo
-    ]);
+    // useEffect(() => {
+    //     setValidFilters(
+    //         textSubstr
+    //         || analyzed !== 'null'
+    //         || (createdFrom && createdTo)
+    //         || (modifiedFrom && modifiedTo)
+    //         || [
+    //             includedTags, includedSentiments, includedEmotions,
+    //             excludedTags, excludedSentiments, excludedEmotions
+    //         ].some(
+    //             arr => Boolean(arr?.length)
+    //         )
+    //     );
+    // }, [
+    //     includedTags, includedSentiments, includedEmotions, excludedTags, excludedSentiments, excludedEmotions,
+    //     textSubstr, analyzed, createdFrom, modifiedFrom, createdTo, modifiedTo
+    // ]);
 
     const removeTagFromList = (id, setNewList) => {
         setNewList(prev => [...prev.filter(tag => tag.id !== id)])
@@ -106,12 +107,12 @@ const HomePage = () => {
         }
     };
 
-    const getCommentsByFilters = async () => {
+    const getCommentsByFilters = async textSubstr => {
         const response = await axios.post(
             `${process.env.REACT_APP_BACKEND_URL}/api/comment/getByFilters`,
             {
                 textSubstr: textSubstr.trim() ?? null,
-                analyzed: analyzed,
+                analyzed: (analyzed === 'null') ? null : Boolean(analyzed),
                 created: { from: createdFrom, to: createdTo, },
                 modified: { from: modifiedFrom, to: modifiedTo, },
                 include: {
@@ -142,8 +143,8 @@ const HomePage = () => {
         setExcludedSentiments([]);
         setIncludedEmotions([]);
         setExcludedEmotions([]);
-        setTextSubstr(null);
-        setAnalyzed(null);
+        setTextSubstr('');
+        setAnalyzed('null');
         setCreatedFrom(null);
         setModifiedFrom(null);
         setCreatedTo(null);
@@ -155,14 +156,25 @@ const HomePage = () => {
         // resetFilters();
     };
 
-    const handleFilterApplying = async () => {
-        if (!validFilters) {
+    const handleFilterApplying = async textSubstr => {
+        if (isFilterApplying) return;
+        if (!(analyzed !== 'null'
+            || textSubstr
+            || (createdFrom && createdTo)
+            || (modifiedFrom && modifiedTo)
+            || [
+                includedTags, includedSentiments, includedEmotions,
+                excludedTags, excludedSentiments, excludedEmotions
+            ].some(
+                arr => Boolean(arr?.length)
+            ))
+        ) {
             console.warn('Filters are empty, nothing to apply');
             return;
         }
         setIsFilterApplying(true);
         try {
-            const comments = await getCommentsByFilters();
+            const comments = await getCommentsByFilters(textSubstr);
             setAllComments([...comments]);
             handleFilterDialogClose();
         } catch (err) {
@@ -295,7 +307,7 @@ const HomePage = () => {
                                 { formValue: true, formLabel: 'Включить:', tagList: includedTags, setTagList: setIncludedTags },
                                 { formValue: false, formLabel: 'Исключить:', tagList: excludedTags, setTagList: setExcludedTags },
                             ].map(row => <
-                                Stack direction="row" sx={{ width: '50vw' }}
+                                Stack direction="row" sx={{ width: '50vw' }} key={row.formLabel}
                             >
                                 <FormControlLabel value={row.formValue} label={row.formLabel} control={<Radio />} />
                                 <Stack direction="row" flexWrap="wrap" spacing={0.5}>
@@ -316,7 +328,6 @@ const HomePage = () => {
                             </Stack>)}
                         </RadioGroup>
                         <TextField
-                            id="filter-text-substr"
                             label="Поиск по тексту комментария"
                             variant="outlined"
                             value={textSubstr}
@@ -327,11 +338,11 @@ const HomePage = () => {
                             <RadioGroup row
                                 aria-labelledby="filter-analyzed"
                                 value={analyzed}
-                                onChange={e => setAnalyzed({ 'true': true, 'false': false, 'null': null, }[String(e.target.value)])}
+                                onChange={e => setAnalyzed(e.target.value)}
                             >
-                                <FormControlLabel value={true} control={<Radio />} label="Прошли анализ" />
-                                <FormControlLabel value={false} control={<Radio />} label="Не прошли анализ" />
-                                <FormControlLabel value={null} control={<Radio />} label="Не важно" />
+                                <FormControlLabel value={'true'} control={<Radio />} label="Прошли анализ" />
+                                <FormControlLabel value={'false'} control={<Radio />} label="Не прошли анализ" />
+                                <FormControlLabel value={'null'} control={<Radio />} label="Не важно" />
                             </RadioGroup>
                         </FormControl>
                     </Stack>
@@ -340,9 +351,9 @@ const HomePage = () => {
             <DialogActions>
                 <Button onClick={handleFilterDialogClose}>Отмена</Button>
                 <Button
-                    onClick={handleFilterApplying}
+                    onClick={() => handleFilterApplying(textSubstr)}
                     variant="contained"
-                    disabled={!validFilters || isLoading}
+                    // disabled={!validFilters || isFilterApplying}
                 >
                     {isFilterApplying ? <CircularProgress size={24} /> : 'Применить'}
                 </Button>
