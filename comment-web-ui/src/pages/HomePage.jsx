@@ -110,7 +110,7 @@ const HomePage = () => {
         const response = await axios.post(
             `${process.env.REACT_APP_BACKEND_URL}/api/comment/getByFilters`,
             {
-                textSubstr: textSubstr,
+                textSubstr: textSubstr.trim() ?? null,
                 analyzed: analyzed,
                 created: { from: createdFrom, to: createdTo, },
                 modified: { from: modifiedFrom, to: modifiedTo, },
@@ -315,6 +315,25 @@ const HomePage = () => {
                                 </Stack>
                             </Stack>)}
                         </RadioGroup>
+                        <TextField
+                            id="filter-text-substr"
+                            label="Поиск по тексту комментария"
+                            variant="outlined"
+                            value={textSubstr}
+                            onChange={e => setTextSubstr(e.target.value)}
+                        />
+                        <FormControl>
+                            <FormLabel id="filter-analyzed">Искать комментарии, которые:</FormLabel>
+                            <RadioGroup row
+                                aria-labelledby="filter-analyzed"
+                                value={analyzed}
+                                onChange={e => setAnalyzed({ 'true': true, 'false': false, 'null': null, }[String(e.target.value)])}
+                            >
+                                <FormControlLabel value={true} control={<Radio />} label="Прошли анализ" />
+                                <FormControlLabel value={false} control={<Radio />} label="Не прошли анализ" />
+                                <FormControlLabel value={null} control={<Radio />} label="Не важно" />
+                            </RadioGroup>
+                        </FormControl>
                     </Stack>
                 </Stack>
             </DialogContent>
