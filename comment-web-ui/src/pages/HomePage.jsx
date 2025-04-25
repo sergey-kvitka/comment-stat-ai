@@ -4,8 +4,7 @@ import axios from 'axios';
 import CommentList from '../components/CommentList';
 import TagTree from '../components/TagTree';
 import {
-    Button, Dialog, DialogActions, DialogContent, DialogTitle, CircularProgress, Stack, RadioGroup, FormControlLabel, Radio,
-    Chip
+    Button, Dialog, DialogActions, DialogContent, DialogTitle, CircularProgress, Stack, RadioGroup, FormControlLabel, Radio, Chip
 } from '@mui/material';
 
 const HomePage = () => {
@@ -38,11 +37,39 @@ const HomePage = () => {
     const [createdTo, setCreatedTo] = useState();
     const [modifiedTo, setModifiedTo] = useState();
 
-    const [includeTags, setIncludeTags] = useState(true);
+    const [includeTagsSwitch, setIncludeTagsSwitch] = useState(true);
     const [isFilterDialogOpen, setIsFilterDialogOpen] = useState(false);
     const [isFilterApplying, setIsFilterApplying] = useState(false);
+    const [validFilters, setValidFilters] = useState(false);
 
     const navigate = useNavigate();
+
+    useEffect(() => {
+        loadComments();
+        loadTags();
+    }, []);
+
+    useEffect(() => {
+        setValidFilters(
+            textSubstr
+            || analyzed !== null
+            || (createdFrom && createdTo)
+            || (modifiedFrom && modifiedTo)
+            || [
+                includedTags, includedSentiments, includedEmotions,
+                excludedTags, excludedSentiments, excludedEmotions
+            ].some(
+                arr => Boolean(arr?.length)
+            )
+        );
+    }, [
+        includedTags, includedSentiments, includedEmotions, excludedTags, excludedSentiments, excludedEmotions,
+        textSubstr, analyzed, createdFrom, modifiedFrom, createdTo, modifiedTo
+    ]);
+
+    const removeTagFromList = (id, setNewList) => {
+        setNewList(prev => [...prev.filter(tag => tag.id !== id)])
+    };
 
     const loadTags = async () => {
         try {
@@ -50,8 +77,7 @@ const HomePage = () => {
                 `${process.env.REACT_APP_BACKEND_URL}/api/tag/all`,
                 { withCredentials: true }
             );
-            // todo: setAllTags(response.data.tags);
-            // todo for test many tags
+            // todo for test many tags // setAllTags(response.data.tags);
             setAllTags([
                 ...response.data.tags,
                 ...(response.data.tags.map(t => ({
@@ -61,9 +87,9 @@ const HomePage = () => {
                     color: 'dodgerblue'
                 })))
             ]);
-        } catch (e) {
-            console.error(e.response?.status);
-            console.error(e);
+        } catch (err) {
+            console.error(err.response?.status);
+            console.error(err);
         }
     }
 
@@ -74,45 +100,35 @@ const HomePage = () => {
                 { withCredentials: true }
             );
             setAllComments(response.data.comments);
-        } catch (e) {
-            console.error(e.response?.status);
-            console.error(e);
+        } catch (err) {
+            console.error(err.response?.status);
+            console.error(err);
         }
     };
 
-    const loadCommentByFilters = async () => {
-        try {
-            const response = await axios.post(
-                `${process.env.REACT_APP_BACKEND_URL}/api/comment/getByFilters`,
-                {
-                    textSubstr: textSubstr,
-                    analyzed: analyzed,
-                    created: { from: createdFrom, to: createdTo, },
-                    modified: { from: modifiedFrom, to: modifiedTo, },
-                    include: {
-                        tagIds: includedTags.map(tag => tag.id),
-                        emotions: includedEmotions,
-                        sentiments: includedSentiments,
-                    },
-                    exclude: {
-                        tagIds: excludedTags.map(tag => tag.id),
-                        emotions: excludedEmotions,
-                        sentiments: excludedSentiments,
-                    },
+    const getCommentsByFilters = async () => {
+        const response = await axios.post(
+            `${process.env.REACT_APP_BACKEND_URL}/api/comment/getByFilters`,
+            {
+                textSubstr: textSubstr,
+                analyzed: analyzed,
+                created: { from: createdFrom, to: createdTo, },
+                modified: { from: modifiedFrom, to: modifiedTo, },
+                include: {
+                    tagIds: includedTags.map(tag => tag.id),
+                    emotions: includedEmotions,
+                    sentiments: includedSentiments,
                 },
-                { withCredentials: true }
-            );
-            setAllComments(response.data.comments);
-        } catch (e) {
-            console.error(e.response?.status);
-            console.error(e);
-        }
+                exclude: {
+                    tagIds: excludedTags.map(tag => tag.id),
+                    emotions: excludedEmotions,
+                    sentiments: excludedSentiments,
+                },
+            },
+            { withCredentials: true }
+        );
+        return response.data.comments;
     }
-
-    useEffect(() => {
-        loadComments();
-        loadTags();
-    }, []);
 
     const handleLogout = () => {
         // todo: logout endpoint
@@ -140,20 +156,26 @@ const HomePage = () => {
     };
 
     const handleFilterApplying = async () => {
-        // check if any of filters is valid
-        if (
-            !([includedTags, includedSentiments, includedEmotions,
-                excludedTags, excludedSentiments, excludedEmotions].some(arr => !!(arr?.length))
-                || textSubstr
-                || analyzed !== null
-                || (createdFrom && createdTo)
-                || (modifiedFrom && modifiedTo)
-            )
-        ) {
+        if (!validFilters) {
             console.warn('Filters are empty, nothing to apply');
             return;
         }
-        // todo get response & close dialog
+        setIsFilterApplying(true);
+        try {
+            const comments = await getCommentsByFilters();
+            setAllComments([...comments]);
+            handleFilterDialogClose();
+        } catch (err) {
+            // todo: change alerts everywhere
+            // todo: handle 401 everywhere
+            if (err.response) {
+                alert(err.response.data?.message ?? `${err.response.status} HTTP error`);
+            } else {
+                alert(err.message);
+            }
+        } finally {
+            setIsFilterApplying(false);
+        }
     };
 
     const handleAddComment = async commentText => {
@@ -213,12 +235,12 @@ const HomePage = () => {
     };
 
     const handleTagIncludeSwitch = event => {
-        setIncludeTags(event.target.value === 'true');
+        setIncludeTagsSwitch(event.target.value === 'true');
     }
 
     const handleTagClick = tag => {
         const [tagList, setTagList] = (
-            includeTags ? [includedTags, setIncludedTags] : [excludedTags, setExcludedTags]
+            includeTagsSwitch ? [includedTags, setIncludedTags] : [excludedTags, setExcludedTags]
         );
         if (!tagList.some(t => t.id === tag.id)) {
             setTagList(prev => [...prev, tag]);
@@ -236,7 +258,7 @@ const HomePage = () => {
 
     return <div className="home-page">
         <button onClick={handleLogout}>Выйти из профиля</button>
-        <button onClick={loadCommentByFilters}>Применить фильтры</button>
+        <button onClick={handleFilterApplying}>Применить фильтры</button>
         <button onClick={() => setIsFilterDialogOpen(true)}>Фильтры</button>
         <CommentList
             comments={allComments}
@@ -266,21 +288,23 @@ const HomePage = () => {
                     <Stack direction="column">
                         <RadioGroup
                             name="tag-include-exclude"
-                            value={includeTags}
+                            value={includeTagsSwitch}
                             onChange={handleTagIncludeSwitch}
                         >
-                            <Stack direction="row" sx={{ width: '50vw' }}>
-                                <FormControlLabel
-                                    value={true}
-                                    control={<Radio />}
-                                    label="Включить:"
-                                />
+                            {[
+                                { formValue: true, formLabel: 'Включить:', tagList: includedTags, setTagList: setIncludedTags },
+                                { formValue: false, formLabel: 'Исключить:', tagList: excludedTags, setTagList: setExcludedTags },
+                            ].map(row => <
+                                Stack direction="row" sx={{ width: '50vw' }}
+                            >
+                                <FormControlLabel value={row.formValue} label={row.formLabel} control={<Radio />} />
                                 <Stack direction="row" flexWrap="wrap" spacing={0.5}>
-                                    {includedTags.map(tag => (
+                                    {[...row.tagList].map(tag => (
                                         <Chip
                                             key={tag.id}
                                             label={tag.name}
                                             size="small"
+                                            onClick={() => removeTagFromList(tag.id, row.setTagList)}
                                             sx={{
                                                 backgroundColor: tag.color,
                                                 marginBottom: '5px !important',
@@ -289,28 +313,7 @@ const HomePage = () => {
                                         />
                                     ))}
                                 </Stack>
-                            </Stack>
-                            <Stack direction="row" sx={{ width: '50vw' }}>
-                                <FormControlLabel
-                                    value={false}
-                                    control={<Radio />}
-                                    label="Исключить:"
-                                />
-                                <Stack direction="row" flexWrap="wrap" spacing={0.5}>
-                                    {excludedTags.map(tag => (
-                                        <Chip
-                                            key={tag.id}
-                                            label={tag.name}
-                                            size="small"
-                                            sx={{
-                                                backgroundColor: tag.color,
-                                                marginBottom: '5px !important',
-                                                color: 'white',
-                                            }}
-                                        />
-                                    ))}
-                                </Stack>
-                            </Stack>
+                            </Stack>)}
                         </RadioGroup>
                     </Stack>
                 </Stack>
@@ -320,6 +323,7 @@ const HomePage = () => {
                 <Button
                     onClick={handleFilterApplying}
                     variant="contained"
+                    disabled={!validFilters || isLoading}
                 >
                     {isFilterApplying ? <CircularProgress size={24} /> : 'Применить'}
                 </Button>
