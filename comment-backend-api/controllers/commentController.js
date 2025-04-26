@@ -27,6 +27,7 @@ exports.save = async (req, res) => {
 exports.getByFilters = async (req, res) => {
     let comments;
     try {
+        console.debug(req.body);
         comments = await Comment.findByFilters({ ...req.body, userId: req.user.id });
     } catch (err) {
         console.error(err);

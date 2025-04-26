@@ -24,7 +24,8 @@ const TagItem = ({ tag, level = 0, onTagClick, onTagEdit }) => {
                     pl: level * 2,
                     '&:hover': {
                         backgroundColor: 'action.hover'
-                    }
+                    },
+                    minWidth: 'max-content'
                 }}
                 onMouseEnter={() => setHovered(true)}
                 onMouseLeave={() => setHovered(false)}
@@ -33,15 +34,21 @@ const TagItem = ({ tag, level = 0, onTagClick, onTagEdit }) => {
                     <IconButton
                         size="small"
                         onClick={() => setExpanded(!expanded)}
+                        sx={{ flexShrink: 0 }}
                     >
                         {expanded ? <ExpandMore fontSize="small" /> : <ChevronRight fontSize="small" />}
                     </IconButton>
                 )}
-                {!hasChildren && <Box sx={{ width: 32 }} />}
+                {!hasChildren && <Box sx={{ width: 32, flexShrink: 0 }} />}
 
                 <ListItemButton
                     onClick={() => onTagClick({ ...tag, children: undefined })}
-                    sx={{ px: 1, flexGrow: 0, borderRadius: '5px' }}
+                    sx={{
+                        px: 1,
+                        flexGrow: 0,
+                        borderRadius: '5px',
+                        minWidth: 'max-content'
+                    }}
                 >
                     <Chip
                         label={tag.name}
@@ -52,30 +59,33 @@ const TagItem = ({ tag, level = 0, onTagClick, onTagEdit }) => {
                             marginBottom: '-5px',
                             marginTop: '-5px',
                             '& .MuiChip-label': {
-                                px: 1
-                            }
+                                px: 1,
+                                whiteSpace: 'nowrap'
+                            },
+                            flexShrink: 0
                         }}
                     />
                 </ListItemButton>
                 {
                     onTagEdit && <IconButton
-                    size="small"
-                    onClick={() => onTagEdit({ ...tag, children: undefined })}
-                    sx={{
-                        ml: 'auto',
-                        opacity: hovered ? 0.6 : 0,
-                        '&:hover': { opacity: 1 },
-                        transition: 'opacity 0.2s'
-                    }}
-                >
-                    <EditIcon fontSize="small" />
-                </IconButton>
+                        size="small"
+                        onClick={() => onTagEdit({ ...tag, children: undefined })}
+                        sx={{
+                            ml: 'auto',
+                            opacity: hovered ? 0.6 : 0,
+                            '&:hover': { opacity: 1 },
+                            transition: 'opacity 0.2s',
+                            flexShrink: 0
+                        }}
+                    >
+                        <EditIcon fontSize="small" />
+                    </IconButton>
                 }
             </ListItem>
 
             {hasChildren && (
                 <Collapse in={expanded} timeout="auto" unmountOnExit>
-                    <List component="div" disablePadding>
+                    <List component="div" disablePadding sx={{ minWidth: 'max-content' }}>
                         {tag.children.map(child => (
                             <TagItem
                                 key={child.id}
@@ -115,17 +125,23 @@ const TagTree = ({ tags = [], onTagClick, onTagEdit, maxHeight, flex }) => {
             overflowY: 'auto',
             overflowX: 'auto',
             maxHeight: maxHeight,
-            flex: flex
+            flex: flex,
+            minWidth: 0,
+            '& > .MuiList-root': {
+                minWidth: 'max-content'
+            }
         }}
     >
-        {tagTree.map(tag => (
-            <TagItem
-                key={tag.id}
-                tag={tag}
-                onTagClick={onTagClick}
-                onTagEdit={onTagEdit}
-            />
-        ))}
+        <List sx={{ minWidth: 'max-content' }}>
+            {tagTree.map(tag => (
+                <TagItem
+                    key={tag.id}
+                    tag={tag}
+                    onTagClick={onTagClick}
+                    onTagEdit={onTagEdit}
+                />
+            ))}
+        </List>
     </Paper>;
 };
 

@@ -8,8 +8,9 @@ import { useNavigate } from 'react-router-dom';
 import {
     Button, Dialog, DialogActions, DialogContent, DialogTitle, CircularProgress, Box,
     Stack, RadioGroup, FormControlLabel, Radio, Chip, TextField, FormControl, FormLabel,
-    Typography, Paper
+    Typography, Paper, InputLabel, MenuItem, Select, Checkbox,
 } from '@mui/material';
+import { Check as CheckIcon, Close as CloseIcon } from '@mui/icons-material';
 import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
 import { AdapterDayjs } from '@mui/x-date-pickers/AdapterDayjs';
 import { DateTimePicker } from '@mui/x-date-pickers/DateTimePicker';
@@ -40,6 +41,22 @@ const mapErrorAfterReq = err => {
 
 const MemoizedTagTree = React.memo(TagTree);
 const MemoizedCommentList = React.memo(CommentList);
+
+// todo emotion and sentiment lists being loaded from server
+const emotions = [
+    { desc: 'Радость', name: 'joy', color: '#00BB00' },
+    { desc: 'Злость', name: 'anger', color: '#EE0000' },
+    { desc: 'Страх', name: 'fear', color: '#7F2180' },
+    { desc: 'Удивление', name: 'surprise', color: '#22ACBB' },
+    { desc: 'Грусть', name: 'sadness', color: '#152BA7' },
+    { desc: 'Нет эмоции', name: 'neutral', color: '#AAAAAA' },
+];
+
+const sentiments = [
+    { desc: 'Позитивный', name: 'positive', color: '#00BB00' },
+    { desc: 'Нейтральный', name: 'neutral', color: '#AAAAAA' },
+    { desc: 'Негативный', name: 'negative', color: '#EE0000' },
+];
 
 const HomePage = () => {
 
@@ -193,6 +210,93 @@ const HomePage = () => {
         setTextSubstr, setAnalyzed, setCreatedFrom, setModifiedFrom, setCreatedTo, setModifiedTo
     ]);
 
+    const handleClassSelect = (type, name, action) => {
+        if (type === 'sentiment') {
+            if (action === 'include') {
+                setIncludedSentiments(prev =>
+                    prev.includes(name)
+                        ? prev.filter(item => item !== name)
+                        : [...prev, name]
+                );
+                setExcludedSentiments(prev =>
+                    prev.filter(item => item !== name)
+                );
+            } else {
+                setExcludedSentiments(prev =>
+                    prev.includes(name)
+                        ? prev.filter(item => item !== name)
+                        : [...prev, name]
+                );
+                setIncludedSentiments(prev =>
+                    prev.filter(item => item !== name)
+                );
+            }
+        } else {
+            if (action === 'include') {
+                setIncludedEmotions(prev =>
+                    prev.includes(name)
+                        ? prev.filter(item => item !== name)
+                        : [...prev, name]
+                );
+                setExcludedEmotions(prev =>
+                    prev.filter(item => item !== name)
+                );
+            } else {
+                setExcludedEmotions(prev =>
+                    prev.includes(name)
+                        ? prev.filter(item => item !== name)
+                        : [...prev, name]
+                );
+                setIncludedEmotions(prev =>
+                    prev.filter(item => item !== name)
+                );
+            }
+        }
+    };
+
+    const renderSelectItem = (item, type) => {
+        const isIncluded = (type === 'sentiment' ? includedSentiments : includedEmotions).includes(item.name);
+        const isExcluded = (type === 'sentiment' ? excludedSentiments : excludedEmotions).includes(item.name);
+
+        return <Box sx={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            borderRadius: '4px',
+            width: '100%',
+            px: 1
+        }}>
+            <Chip
+                label={item.desc}
+                size="small"
+                sx={{
+                    backgroundColor: item.color,
+                    color: 'white',
+                    flexGrow: 1,
+                    mr: 1
+                }}
+            />
+            <Box sx={{ display: 'flex' }}>
+                <Checkbox
+                    icon={<CheckIcon />}
+                    checkedIcon={<CheckIcon />}
+                    checked={isIncluded}
+                    onChange={() => handleClassSelect(type, item.name, 'include')}
+                    className={`class-select-cb cb-include ${isIncluded ? 'class-checked' : ''}`}
+                    sx={{ p: 0.5 }}
+                />
+                <Checkbox
+                    icon={<CloseIcon />}
+                    checkedIcon={<CloseIcon />}
+                    checked={isExcluded}
+                    onChange={() => handleClassSelect(type, item.name, 'exclude')}
+                    className={`class-select-cb cb-exclude ${isExcluded ? 'class-checked' : ''}`}
+                    sx={{ p: 0.5 }}
+                />
+            </Box>
+        </Box>;
+    };
+
     const handleFilterDialogClose = useCallback(() => {
         setIsFilterDialogOpen(false);
     }, []);
@@ -291,6 +395,17 @@ const HomePage = () => {
         setTextSubstr(e.target.value);
     }, []);
 
+    const classSelectStyle = {
+        '& .MuiInputLabel-root': {
+            backgroundColor: 'background.paper',
+            px: 0.5,
+            transform: 'translate(14px, -9px) scale(0.75)',
+            '&.Mui-focused': {
+                color: 'primary.main',
+            }
+        }
+    };
+
     return <>
         <Box
             sx={{
@@ -363,7 +478,7 @@ const HomePage = () => {
                             tags={allTags}
                             onTagClick={handleTagClick}
                             onTagEdit={null}
-                            maxHeight={'70vh'}
+                            maxHeight={'55vh'}
                         />
                         <Stack direction="column" spacing={2}>
                             <RadioGroup
@@ -401,18 +516,66 @@ const HomePage = () => {
                                 margin="normal"
                             />
 
-                            <FormControl>
-                                <FormLabel id="filter-analyzed">Искать комментарии, которые:</FormLabel>
-                                <RadioGroup row
-                                    aria-labelledby="filter-analyzed"
-                                    value={analyzed}
-                                    onChange={e => setAnalyzed(e.target.value)}
+                            <Stack direction="row" spacing={3} sx={{ width: '100%' }}>
+                                <FormControl>
+                                    <FormLabel id="filter-analyzed">Искать комментарии, которые:</FormLabel>
+                                    <RadioGroup row
+                                        aria-labelledby="filter-analyzed"
+                                        value={analyzed}
+                                        onChange={e => setAnalyzed(e.target.value)}
+                                    >
+                                        <FormControlLabel value={'true'} control={<Radio />} label="Прошли анализ" />
+                                        <FormControlLabel value={'false'} control={<Radio />} label="Не прошли анализ" />
+                                        <FormControlLabel value={'null'} control={<Radio />} label="Не важно" />
+                                    </RadioGroup>
+                                </FormControl>
+                                <FormControl
+                                    sx={{
+                                        width: '250px',
+                                        marginTop: '16px !important',
+                                        ...classSelectStyle
+                                    }}
                                 >
-                                    <FormControlLabel value={'true'} control={<Radio />} label="Прошли анализ" />
-                                    <FormControlLabel value={'false'} control={<Radio />} label="Не прошли анализ" />
-                                    <FormControlLabel value={'null'} control={<Radio />} label="Не важно" />
-                                </RadioGroup>
-                            </FormControl>
+                                    <InputLabel id="sentiments-label" shrink>Настроения</InputLabel>
+                                    <Select
+                                        labelId="sentiments-label"
+                                        label="Настроения"
+                                        multiple
+                                        value={[]}
+                                        displayEmpty
+                                        sx={{ '& .MuiSelect-select': { pt: 2, pl: 1.5 } }}
+                                    >
+                                        {sentiments.map(item => (
+                                            <MenuItem key={item.name} dense>
+                                                {renderSelectItem(item, 'sentiment')}
+                                            </MenuItem>
+                                        ))}
+                                    </Select>
+                                </FormControl>
+                                <FormControl
+                                    sx={{
+                                        width: '250px',
+                                        marginTop: '16px !important',
+                                        ...classSelectStyle
+                                    }}
+                                >
+                                    <InputLabel id="emotionts-label" shrink>Эмоции</InputLabel>
+                                    <Select
+                                        labelId="emotionts-label"
+                                        label="Эмоции"
+                                        multiple
+                                        value={[]}
+                                        displayEmpty
+                                        sx={{ '& .MuiSelect-select': { pt: 2, pl: 1.5 } }}
+                                    >
+                                        {emotions.map(item => (
+                                            <MenuItem key={item.name} dense>
+                                                {renderSelectItem(item, 'emotion')}
+                                            </MenuItem>
+                                        ))}
+                                    </Select>
+                                </FormControl>
+                            </Stack>
 
                             <LocalizationProvider
                                 dateAdapter={AdapterDayjs}
@@ -447,13 +610,59 @@ const HomePage = () => {
                                             }}
                                             sx={{ flex: 1, minWidth: 200 }}
                                         />
-
                                         <DateTimePicker
                                             key={createdTo ? 'filled-end' : 'empty-end'}
                                             label="Конечная дата"
                                             value={createdTo}
                                             onChange={newValue => setCreatedTo(newValue)}
                                             minDateTime={createdFrom}
+                                            format={dateTimeFormat}
+                                            ampm={false}
+                                            views={['year', 'month', 'day', 'hours', 'minutes', 'seconds']}
+                                            slotProps={{
+                                                textField: { fullWidth: true },
+                                                actionBar: {
+                                                    actions: ['accept', 'cancel', 'today', 'clear'],
+                                                },
+                                            }}
+                                            sx={{ flex: 1, minWidth: 200 }}
+                                        />
+                                    </Stack>
+                                </Box>
+                                <Typography variant="h6">Дата изменения</Typography>
+                                <Box>
+                                    <Stack
+                                        direction="row"
+                                        spacing={2}
+                                        sx={{
+                                            display: 'flex',
+                                            width: '100%',
+                                            alignItems: 'flex-start'
+                                        }}
+                                    >
+                                        <DateTimePicker
+                                            key={modifiedFrom ? 'filled-m-start' : 'empty-m-start'}
+                                            label="Начальная дата"
+                                            value={modifiedFrom}
+                                            onChange={newValue => setModifiedFrom(newValue)}
+                                            maxDateTime={modifiedTo}
+                                            format={dateTimeFormat}
+                                            ampm={false}
+                                            views={['year', 'month', 'day', 'hours', 'minutes', 'seconds']}
+                                            slotProps={{
+                                                textField: { fullWidth: true },
+                                                actionBar: {
+                                                    actions: ['accept', 'cancel', 'today', 'clear'],
+                                                },
+                                            }}
+                                            sx={{ flex: 1, minWidth: 200 }}
+                                        />
+                                        <DateTimePicker
+                                            key={modifiedTo ? 'filled-m-end' : 'empty-m-end'}
+                                            label="Конечная дата"
+                                            value={modifiedTo}
+                                            onChange={newValue => setModifiedTo(newValue)}
+                                            minDateTime={modifiedFrom}
                                             format={dateTimeFormat}
                                             ampm={false}
                                             views={['year', 'month', 'day', 'hours', 'minutes', 'seconds']}

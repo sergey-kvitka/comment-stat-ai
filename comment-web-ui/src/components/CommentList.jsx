@@ -3,6 +3,7 @@ import {
     List, ListItem, ListItemIcon, Checkbox, ListItemText, Typography, Divider, Chip, Box,
     Paper, Button, TextField, Dialog, DialogActions, DialogContent, DialogTitle, CircularProgress
 } from '@mui/material';
+import { NoteAdd, EditSquare } from '@mui/icons-material';
 
 const CommentList = ({ comments, tags, onAddComment, onAnalyze }) => {
     const [selected, setSelected] = useState([]);
@@ -121,16 +122,17 @@ const CommentList = ({ comments, tags, onAddComment, onAnalyze }) => {
     const commentToElement = comment => (
         <React.Fragment key={comment.id}>
             <ListItem component="div" disablePadding>
-                <ListItemIcon>
+                <ListItemIcon sx={{ minWidth: 0 }}>
                     <Checkbox
                         edge="start"
                         checked={selected.includes(comment.id)}
                         onChange={() => handleToggle(comment.id)}
+                        sx={{ marginRight: 1 }}
                     />
                 </ListItemIcon>
                 <ListItemText
                     primary={
-                        <Typography component="div" variant="body1">
+                        <Typography component="div" variant="body1" sx={{ marginTop: 0.5, marginRight: 2 }}>
                             {comment.text}
                         </Typography>
                     }
@@ -141,9 +143,8 @@ const CommentList = ({ comments, tags, onAddComment, onAnalyze }) => {
                                 sx={{
                                     display: 'flex',
                                     flexWrap: 'wrap',
+                                    alignItems: 'center',
                                     gap: 1,
-                                    marginTop: 1,
-                                    alignItems: 'center'
                                 }}
                             >
                                 {commentClasses(comment)}
@@ -152,6 +153,10 @@ const CommentList = ({ comments, tags, onAddComment, onAnalyze }) => {
                                     variant="caption"
                                     sx={{ marginLeft: 'auto', marginRight: '20px' }}
                                 >
+                                    <NoteAdd sx={{ transform: 'translateY(6px)', marginRight: 1.25 }} fontSize='small' />
+                                    {formatDate(comment.createdStr)}
+                                    <br />
+                                    <EditSquare sx={{ transform: 'translateY(6px)', marginRight: 1.25 }} fontSize='small' />
                                     {formatDate(comment.modifiedStr)}
                                 </Typography>
                             </Box>

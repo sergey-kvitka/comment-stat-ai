@@ -72,3 +72,21 @@ select {
         scroll-behavior: auto !important;
     }
 }
+
+.class-select-cb.cb-include {
+    --col: rgb(0, 128, 0);
+    --bg-col: rgba(0, 128, 0, 20%);
+}
+
+.class-select-cb.cb-exclude {
+    --col: rgb(85%, 0%, 0%);
+    --bg-col: rgba(85%, 0%, 0%, 20%);
+}
+
+.class-select-cb {
+    color: var(--col) !important;
+}
+
+.class-select-cb.class-checked {
+    background-color: var(--bg-col) !important;
+}
