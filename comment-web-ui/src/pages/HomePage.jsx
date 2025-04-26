@@ -315,6 +315,8 @@ const HomePage = () => {
                     tags={allTags}
                     onTagClick={handleTagClick}
                     onTagEdit={handleTagEdit}
+                    maxHeight={'90vh'}
+                    flex={0.2}
                 />
                 <Stack
                     direction="column"
@@ -356,7 +358,7 @@ const HomePage = () => {
             >
                 <DialogTitle align="center">Поиск комментариев</DialogTitle>
                 <DialogContent>
-                    <Stack direction="row" spacing={2}>
+                    <Stack direction="row" spacing={2} style={{ display: 'flex' }}>
                         <MemoizedTagTree
                             tags={allTags}
                             onTagClick={handleTagClick}

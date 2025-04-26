@@ -101,7 +101,7 @@ const buildTree = (tags, parentId = null) => {
         }));
 };
 
-const TagTree = ({ tags = [], onTagClick, onTagEdit, maxHeight }) => {
+const TagTree = ({ tags = [], onTagClick, onTagEdit, maxHeight, flex }) => {
     const tagTree = buildTree(tags);
 
     return <Paper
@@ -113,7 +113,9 @@ const TagTree = ({ tags = [], onTagClick, onTagEdit, maxHeight }) => {
             marginBottom: 2,
             marginRight: 0,
             overflowY: 'auto',
-            maxHeight: maxHeight
+            overflowX: 'auto',
+            maxHeight: maxHeight,
+            flex: flex
         }}
     >
         {tagTree.map(tag => (
