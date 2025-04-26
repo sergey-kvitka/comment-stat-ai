@@ -1,12 +1,42 @@
-import { useNavigate } from 'react-router-dom';
-import React, { useEffect, useState, useCallback, useMemo } from 'react';
 import axios from 'axios';
 import CommentList from '../components/CommentList';
 import TagTree from '../components/TagTree';
+
+import React, { useEffect, useState, useCallback, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
+
 import {
-    Button, Dialog, DialogActions, DialogContent, DialogTitle, CircularProgress,
+    Button, Dialog, DialogActions, DialogContent, DialogTitle, CircularProgress, Box,
     Stack, RadioGroup, FormControlLabel, Radio, Chip, TextField, FormControl, FormLabel,
+    Typography, Paper
 } from '@mui/material';
+import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
+import { AdapterDayjs } from '@mui/x-date-pickers/AdapterDayjs';
+import { DateTimePicker } from '@mui/x-date-pickers/DateTimePicker';
+import { ruRU } from '@mui/x-date-pickers/locales';
+
+import 'dayjs/locale/ru';
+
+const dateTimeFormat = 'DD.MM.YYYY HH:mm:ss';
+
+const localeText = ruRU.components.MuiLocalizationProvider.defaultProps.localeText;
+localeText.okButtonLabel = 'ОК';
+localeText.cancelButtonLabel = 'Отмена';
+
+const mapErrorAfterReq = err => {
+    if (err.response) {
+        return {
+            message: err.response.data?.message || `HTTP error ${err.response.status}`,
+            status: err.response.status,
+            data: err.response.data
+        };
+    } else {
+        return {
+            message: err.message || 'Network error',
+            isNetworkError: true
+        };
+    }
+};
 
 const MemoizedTagTree = React.memo(TagTree);
 const MemoizedCommentList = React.memo(CommentList);
@@ -46,11 +76,6 @@ const HomePage = () => {
     const [isFilterApplying, setIsFilterApplying] = useState(false);
 
     const navigate = useNavigate();
-
-    useEffect(() => {
-        loadComments();
-        loadTags();
-    }, []);
 
     const removeTagFromList = useCallback((id, setNewList) => {
         setNewList(prev => [...prev.filter(tag => tag.id !== id)]);
@@ -96,28 +121,49 @@ const HomePage = () => {
         }
     }, []);
 
+    useEffect(() => {
+        loadComments();
+        loadTags();
+    }, [loadComments, loadTags]);
+
     const getCommentsByFilters = useCallback(async () => {
-        const response = await axios.post(
-            `${process.env.REACT_APP_BACKEND_URL}/api/comment/getByFilters`,
-            {
-                textSubstr: textSubstr.trim() ?? null,
-                analyzed: (analyzed === 'null') ? null : Boolean(analyzed),
-                created: { from: createdFrom, to: createdTo, },
-                modified: { from: modifiedFrom, to: modifiedTo, },
-                include: {
-                    tagIds: includedTags.map(tag => tag.id),
-                    emotions: includedEmotions,
-                    sentiments: includedSentiments,
+        try {
+            const response = await axios.post(
+                `${process.env.REACT_APP_BACKEND_URL}/api/comment/getByFilters`,
+                {
+                    textSubstr: textSubstr.trim() ?? null,
+                    analyzed: (analyzed === 'null') ? null : Boolean(analyzed === 'true'),
+                    created: {
+                        from: createdFrom?.toISOString(),
+                        to: createdTo?.toISOString(),
+                    },
+                    modified: {
+                        from: modifiedFrom?.toISOString(),
+                        to: modifiedTo?.toISOString(),
+                    },
+                    include: {
+                        tagIds: includedTags.map(tag => tag.id),
+                        emotions: includedEmotions,
+                        sentiments: includedSentiments,
+                    },
+                    exclude: {
+                        tagIds: excludedTags.map(tag => tag.id),
+                        emotions: excludedEmotions,
+                        sentiments: excludedSentiments,
+                    },
                 },
-                exclude: {
-                    tagIds: excludedTags.map(tag => tag.id),
-                    emotions: excludedEmotions,
-                    sentiments: excludedSentiments,
-                },
-            },
-            { withCredentials: true }
-        );
-        return response.data.comments;
+                { withCredentials: true }
+            );
+            if (response.status === 204) {
+                return [];
+            }
+            if (!(response.data?.comments)) {
+                console.error('Неверный формат ответа сервера (/api/comment/getByFilters)');
+            }
+            return response.data?.comments ?? [];
+        } catch (err) {
+            throw mapErrorAfterReq(err);
+        }
     }, [
         textSubstr, analyzed, createdFrom, createdTo, modifiedFrom, modifiedTo,
         excludedEmotions, excludedSentiments, excludedTags, includedEmotions, includedSentiments, includedTags
@@ -137,11 +183,15 @@ const HomePage = () => {
         setExcludedEmotions([]);
         setTextSubstr('');
         setAnalyzed('null');
-        setCreatedFrom(null);
-        setModifiedFrom(null);
-        setCreatedTo(null);
-        setModifiedTo(null);
-    }, []);
+        setCreatedFrom();
+        setModifiedFrom();
+        setCreatedTo();
+        setModifiedTo();
+    }, [
+        setIncludedTags, setIncludedSentiments, setIncludedEmotions,
+        setExcludedTags, setExcludedSentiments, setExcludedEmotions,
+        setTextSubstr, setAnalyzed, setCreatedFrom, setModifiedFrom, setCreatedTo, setModifiedTo
+    ]);
 
     const handleFilterDialogClose = useCallback(() => {
         setIsFilterDialogOpen(false);
@@ -149,20 +199,6 @@ const HomePage = () => {
 
     const handleFilterApplying = useCallback(async () => {
         if (isFilterApplying) return;
-        if (!(analyzed !== 'null'
-            || textSubstr
-            || (createdFrom && createdTo)
-            || (modifiedFrom && modifiedTo)
-            || [
-                includedTags, includedSentiments, includedEmotions,
-                excludedTags, excludedSentiments, excludedEmotions
-            ].some(
-                arr => Boolean(arr?.length)
-            )
-        )) {
-            alert('Filters are empty, nothing to apply');
-            return;
-        }
         setIsFilterApplying(true);
         try {
             const comments = await getCommentsByFilters();
@@ -171,19 +207,11 @@ const HomePage = () => {
         } catch (err) {
             // todo: change alerts everywhere
             // todo: handle 401 everywhere
-            if (err.response) {
-                alert(err.response.data?.message ?? `${err.response.status} HTTP error`);
-            } else {
-                alert(err.message);
-            }
+            alert(err.message);
         } finally {
             setIsFilterApplying(false);
         }
-    }, [
-        textSubstr, analyzed, createdFrom, createdTo, modifiedFrom, modifiedTo,
-        excludedEmotions, excludedSentiments, excludedTags, includedEmotions, includedSentiments, includedTags,
-        getCommentsByFilters, handleFilterDialogClose, isFilterApplying
-    ]);
+    }, [getCommentsByFilters, handleFilterDialogClose, isFilterApplying]);
 
     const handleAddComment = useCallback(async commentText => {
         try {
@@ -209,6 +237,7 @@ const HomePage = () => {
     const handleAnalyze = useCallback(async ids => {
         if (ids.length === 0) {
             alert('Вы не выбрали ни одного комментария для анализа');
+            return;
         }
         try {
             const response = await axios.post(
@@ -252,7 +281,7 @@ const HomePage = () => {
         if (!tagList.some(t => t.id === tag.id)) {
             setTagList(prev => [...prev, tag]);
         }
-    }, [excludedTags, includeTagsSwitch, includedTags]);
+    }, [excludedTags, includeTagsSwitch, includedTags, setIncludedTags, setExcludedTags]);
 
     const handleTagEdit = useCallback(tag => {
         console.log('editing tag: ' + JSON.stringify(tag));
@@ -262,92 +291,212 @@ const HomePage = () => {
         setTextSubstr(e.target.value);
     }, []);
 
-    return <div className="home-page">
-        <button onClick={handleLogout}>Выйти из профиля</button>
-        <button onClick={handleFilterApplying}>Применить фильтры</button>
-        <button onClick={() => setIsFilterDialogOpen(true)}>Фильтры</button>
-
-        <MemoizedCommentList
-            comments={allComments}
-            tags={tagsAsObject}
-            onAddComment={handleAddComment}
-            onAnalyze={handleAnalyze}
-        />
-
-        <MemoizedTagTree
-            tags={allTags}
-            onTagClick={handleTagClick}
-            onTagEdit={handleTagEdit}
-        />
-
-        <Dialog
-            open={isFilterDialogOpen}
-            onClose={handleFilterDialogClose}
-            scroll='paper'
-            maxWidth={'90vw'}
+    return <>
+        <Box
+            sx={{
+                background: '#444444',
+                width: '100%',
+                height: '64px',
+                padding: '16px',
+                boxSizing: 'border-box'
+            }}
         >
-            <DialogTitle align="center">Поиск комментариев</DialogTitle>
-            <DialogContent>
-                <Stack direction="row" spacing={2}>
-                    <MemoizedTagTree
-                        tags={allTags}
-                        onTagClick={handleTagClick}
-                        onTagEdit={null}
-                    />
-                    <Stack direction="column">
-                        <RadioGroup
-                            name="tag-include-exclude"
-                            value={includeTagsSwitch}
-                            onChange={handleTagIncludeSwitch}
-                        >
-                            {[
-                                { formValue: true, formLabel: 'Включить:', tagList: includedTags, setTagList: setIncludedTags },
-                                { formValue: false, formLabel: 'Исключить:', tagList: excludedTags, setTagList: setExcludedTags },
-                            ].map(row => (
-                                <Stack direction="row" sx={{ width: '50vw' }} key={row.formLabel}>
-                                    <FormControlLabel value={row.formValue} label={row.formLabel} control={<Radio />} />
-                                    <Stack direction="row" flexWrap="wrap" spacing={0.5}>
-                                        {row.tagList.map(tag => renderTag(tag, row.setTagList))}
-                                    </Stack>
-                                </Stack>
-                            ))}
-                        </RadioGroup>
-
-                        <TextField
-                            label="Поиск по тексту комментария"
-                            variant="outlined"
-                            value={textSubstr}
-                            onChange={handleTextChange}
-                            fullWidth
-                            margin="normal"
-                        />
-
-                        <FormControl>
-                            <FormLabel id="filter-analyzed">Искать комментарии, которые:</FormLabel>
-                            <RadioGroup row
-                                aria-labelledby="filter-analyzed"
-                                value={analyzed}
-                                onChange={e => setAnalyzed(e.target.value)}
-                            >
-                                <FormControlLabel value={'true'} control={<Radio />} label="Прошли анализ" />
-                                <FormControlLabel value={'false'} control={<Radio />} label="Не прошли анализ" />
-                                <FormControlLabel value={'null'} control={<Radio />} label="Не важно" />
-                            </RadioGroup>
-                        </FormControl>
-                    </Stack>
-                </Stack>
-            </DialogContent>
-            <DialogActions>
-                <Button onClick={handleFilterDialogClose}>Отмена</Button>
-                <Button
-                    onClick={() => handleFilterApplying(textSubstr)}
-                    variant="contained"
+            <button onClick={handleLogout}>Выйти из профиля</button>
+        </Box>
+        <Box
+            sx={{
+                height: 'calc(100vh - 64px)',
+                maxHeight: 'calc(100vh - 64px)',
+                overflow: 'hidden'
+            }}
+        >
+            <Stack direction="row" sx={{ width: '100%', display: 'flex' }}>
+                <MemoizedTagTree
+                    tags={allTags}
+                    onTagClick={handleTagClick}
+                    onTagEdit={handleTagEdit}
+                />
+                <Stack
+                    direction="column"
+                    sx={{
+                        flex: 1,
+                        display: 'flex',
+                    }}
                 >
-                    {isFilterApplying ? <CircularProgress size={24} /> : 'Применить'}
-                </Button>
-            </DialogActions>
-        </Dialog>
-    </div>;
+                    <Paper
+                        elevation={3}
+                        sx={{
+                            height: '120px',
+                            marginInline: 2,
+                            marginTop: 1,
+                            p: 2
+                        }}
+                    >
+                        <Button
+                            variant="outlined"
+                            onClick={() => setIsFilterDialogOpen(true)}
+                        >
+                            Фильтры
+                        </Button>
+                    </Paper>
+                    <MemoizedCommentList
+                        comments={allComments}
+                        tags={tagsAsObject}
+                        onAddComment={handleAddComment}
+                        onAnalyze={handleAnalyze}
+                    />
+                </Stack>
+            </Stack>
+
+            <Dialog
+                open={isFilterDialogOpen}
+                onClose={handleFilterDialogClose}
+                scroll='paper'
+                maxWidth={'90vw'}
+            >
+                <DialogTitle align="center">Поиск комментариев</DialogTitle>
+                <DialogContent>
+                    <Stack direction="row" spacing={2}>
+                        <MemoizedTagTree
+                            tags={allTags}
+                            onTagClick={handleTagClick}
+                            onTagEdit={null}
+                            maxHeight={'70vh'}
+                        />
+                        <Stack direction="column" spacing={2}>
+                            <RadioGroup
+                                name="tag-include-exclude"
+                                value={includeTagsSwitch}
+                                onChange={handleTagIncludeSwitch}
+                            >
+                                {[
+                                    { formValue: true, formLabel: 'Включить:', tagList: includedTags, setTagList: setIncludedTags },
+                                    { formValue: false, formLabel: 'Исключить:', tagList: excludedTags, setTagList: setExcludedTags },
+                                ].map(row => (
+                                    <Stack
+                                        direction="row"
+                                        sx={{
+                                            width: '50vw',
+                                            display: 'flex',
+                                            alignItems: 'center'
+                                        }}
+                                        key={row.formLabel}
+                                    >
+                                        <FormControlLabel value={row.formValue} label={row.formLabel} control={<Radio />} />
+                                        <Stack direction="row" flexWrap="wrap" spacing={0.5}>
+                                            {row.tagList.map(tag => renderTag(tag, row.setTagList))}
+                                        </Stack>
+                                    </Stack>
+                                ))}
+                            </RadioGroup>
+
+                            <TextField
+                                label="Поиск по тексту комментария"
+                                variant="outlined"
+                                value={textSubstr}
+                                onChange={handleTextChange}
+                                fullWidth
+                                margin="normal"
+                            />
+
+                            <FormControl>
+                                <FormLabel id="filter-analyzed">Искать комментарии, которые:</FormLabel>
+                                <RadioGroup row
+                                    aria-labelledby="filter-analyzed"
+                                    value={analyzed}
+                                    onChange={e => setAnalyzed(e.target.value)}
+                                >
+                                    <FormControlLabel value={'true'} control={<Radio />} label="Прошли анализ" />
+                                    <FormControlLabel value={'false'} control={<Radio />} label="Не прошли анализ" />
+                                    <FormControlLabel value={'null'} control={<Radio />} label="Не важно" />
+                                </RadioGroup>
+                            </FormControl>
+
+                            <LocalizationProvider
+                                dateAdapter={AdapterDayjs}
+                                adapterLocale="ru"
+                                localeText={localeText}
+                            >
+                                <Typography variant="h6">Дата создания</Typography>
+                                <Box>
+                                    <Stack
+                                        direction="row"
+                                        spacing={2}
+                                        sx={{
+                                            display: 'flex',
+                                            width: '100%',
+                                            alignItems: 'flex-start'
+                                        }}
+                                    >
+                                        <DateTimePicker
+                                            key={createdFrom ? 'filled-start' : 'empty-start'}
+                                            label="Начальная дата"
+                                            value={createdFrom}
+                                            onChange={newValue => setCreatedFrom(newValue)}
+                                            maxDateTime={createdTo}
+                                            format={dateTimeFormat}
+                                            ampm={false}
+                                            views={['year', 'month', 'day', 'hours', 'minutes', 'seconds']}
+                                            slotProps={{
+                                                textField: { fullWidth: true },
+                                                actionBar: {
+                                                    actions: ['accept', 'cancel', 'today', 'clear'],
+                                                },
+                                            }}
+                                            sx={{ flex: 1, minWidth: 200 }}
+                                        />
+
+                                        <DateTimePicker
+                                            key={createdTo ? 'filled-end' : 'empty-end'}
+                                            label="Конечная дата"
+                                            value={createdTo}
+                                            onChange={newValue => setCreatedTo(newValue)}
+                                            minDateTime={createdFrom}
+                                            format={dateTimeFormat}
+                                            ampm={false}
+                                            views={['year', 'month', 'day', 'hours', 'minutes', 'seconds']}
+                                            slotProps={{
+                                                textField: { fullWidth: true },
+                                                actionBar: {
+                                                    actions: ['accept', 'cancel', 'today', 'clear'],
+                                                },
+                                            }}
+                                            sx={{ flex: 1, minWidth: 200 }}
+                                        />
+                                    </Stack>
+                                </Box>
+                            </LocalizationProvider>
+                        </Stack>
+                    </Stack>
+                </DialogContent>
+                <DialogActions sx={{ justifyContent: 'space-between', marginInline: '20px', marginBottom: '10px' }}>
+                    <Button
+                        variant="outlined"
+                        color="error"
+                        onClick={resetFilters}
+                    >
+                        Сбросить фильтры
+                    </Button>
+                    <Box>
+                        <Button
+                            variant="outlined"
+                            onClick={handleFilterDialogClose}
+                            sx={{ marginInline: '30px' }}
+                        >
+                            Отмена
+                        </Button>
+                        <Button
+                            onClick={handleFilterApplying}
+                            variant="contained"
+                            disabled={isFilterApplying}
+                        >
+                            {isFilterApplying ? <CircularProgress size={24} /> : 'Применить'}
+                        </Button>
+                    </Box>
+                </DialogActions>
+            </Dialog>
+        </Box >
+    </>;
 };
 
 export default HomePage;

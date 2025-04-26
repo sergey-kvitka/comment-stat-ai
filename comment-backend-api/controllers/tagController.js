@@ -8,6 +8,6 @@ exports.all = async (req, res) => {
     } catch (err) {
         return res.status(500).json({ message: err.message });
     }
-    if (!tags.length) return res.status(204);
+    if (!tags.length) return res.status(204).end();
     res.status(200).json({ tags: tags });
 };

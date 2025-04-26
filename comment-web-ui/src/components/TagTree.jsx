@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import {
     List,
+    Paper,
     ListItem,
     ListItemButton,
     Chip,
@@ -100,16 +101,19 @@ const buildTree = (tags, parentId = null) => {
         }));
 };
 
-const TagTree = ({ tags = [], onTagClick, onTagEdit }) => {
+const TagTree = ({ tags = [], onTagClick, onTagEdit, maxHeight }) => {
     const tagTree = buildTree(tags);
 
-    return <List
+    return <Paper
+        elevation={3}
         sx={{
-            width: '100%',
             bgcolor: 'background.paper',
             p: 1,
+            m: 1,
+            marginBottom: 2,
+            marginRight: 0,
             overflowY: 'auto',
-            maxHeight: '70vh'
+            maxHeight: maxHeight
         }}
     >
         {tagTree.map(tag => (
@@ -120,7 +124,7 @@ const TagTree = ({ tags = [], onTagClick, onTagEdit }) => {
                 onTagEdit={onTagEdit}
             />
         ))}
-    </List>;
+    </Paper>;
 };
 
 export default TagTree;

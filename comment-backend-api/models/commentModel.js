@@ -164,7 +164,7 @@ class Comment {
     static async findByIdList(ids) {
         const result = await db.query(/* sql */ `
             with input_ids as (
-                select value::bigint as id, ordinality as sort_order
+                select unnest as id, ordinality as sort_order
                 from unnest($1::bigint[]) with ordinality
             )
             ${commentSelect}

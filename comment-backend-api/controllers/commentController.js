@@ -9,7 +9,7 @@ exports.all = async (req, res) => {
         console.error(err);
         return res.status(500).json({ message: err.message });
     }
-    if (!comments.length) return res.status(204);
+    if (!comments.length) return res.status(204).end();
     res.status(200).json({ comments: comments });
 };
 
@@ -32,7 +32,9 @@ exports.getByFilters = async (req, res) => {
         console.error(err);
         return res.status(500).json({ message: err.message });
     }
-    if (!comments.length) return res.status(204);
+    if (!comments.length) {
+        return res.status(204).end();
+    }
     res.status(200).json({ comments: comments });
 };
 
@@ -40,7 +42,7 @@ exports.updateAll = async (req, res) => {
     try {
         const commentIds = req.body.commentIds;
         let comments = await Comment.findByIdList(commentIds);
-        if (!comments.length) return res.status(204);
+        if (!comments.length) return res.status(204).end();
 
         const userId = req.user.id;
         if (comments.some(c => c.userId != userId)) {

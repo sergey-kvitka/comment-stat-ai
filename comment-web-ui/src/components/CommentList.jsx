@@ -150,7 +150,7 @@ const CommentList = ({ comments, tags, onAddComment, onAnalyze }) => {
                                 <Typography
                                     component="span"
                                     variant="caption"
-                                    sx={{ marginLeft: 'auto' }}
+                                    sx={{ marginLeft: 'auto', marginRight: '20px' }}
                                 >
                                     {formatDate(comment.modifiedStr)}
                                 </Typography>
@@ -166,7 +166,12 @@ const CommentList = ({ comments, tags, onAddComment, onAnalyze }) => {
     );
 
     return <
-        Paper elevation={3} sx={{ padding: 2, margin: 2 }}
+        Paper elevation={3} sx={{
+            padding: 2,
+            margin: 2,
+            height: '700px',
+            overflow: 'hidden'
+        }}
     >
         <Box
             component="div"
@@ -197,12 +202,23 @@ const CommentList = ({ comments, tags, onAddComment, onAnalyze }) => {
                 </Button>
                 <Button
                     variant="outlined"
+                    color='success'
                     onClick={() => onAnalyze(selected)}
                 >
                     Анализировать
                 </Button>
             </Box>
         </Box>
+
+        <List
+            component="div"
+            sx={{
+                height: '630px',
+                overflowY: 'auto'
+            }}
+        >
+            {comments.map(commentToElement)}
+        </List>
 
         <Dialog open={isDialogOpen} onClose={handleDialogClose}>
             <DialogTitle>Новый комментарий</DialogTitle>
@@ -230,9 +246,6 @@ const CommentList = ({ comments, tags, onAddComment, onAnalyze }) => {
                 </Button>
             </DialogActions>
         </Dialog>
-        <List component="div">
-            {comments.map(c => commentToElement(c))}
-        </List>
     </Paper>;
 };
 
