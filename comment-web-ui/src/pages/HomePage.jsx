@@ -15,6 +15,7 @@ import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
 import { AdapterDayjs } from '@mui/x-date-pickers/AdapterDayjs';
 import { DateTimePicker } from '@mui/x-date-pickers/DateTimePicker';
 import { ruRU } from '@mui/x-date-pickers/locales';
+import { formatISO } from 'date-fns';
 
 import 'dayjs/locale/ru';
 
@@ -151,12 +152,12 @@ const HomePage = () => {
                     textSubstr: textSubstr.trim() ?? null,
                     analyzed: (analyzed === 'null') ? null : Boolean(analyzed === 'true'),
                     created: {
-                        from: createdFrom?.toISOString(),
-                        to: createdTo?.toISOString(),
+                        from: createdFrom ? formatISO(createdFrom) : null,
+                        to: createdTo ? formatISO(createdTo) : null,
                     },
                     modified: {
-                        from: modifiedFrom?.toISOString(),
-                        to: modifiedTo?.toISOString(),
+                        from: modifiedFrom ? formatISO(modifiedFrom) : null,
+                        to: modifiedTo ? formatISO(modifiedTo) : null,
                     },
                     include: {
                         tagIds: includedTags.map(tag => tag.id),
