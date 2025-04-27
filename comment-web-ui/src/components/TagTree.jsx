@@ -111,7 +111,7 @@ const buildTree = (tags, parentId = null) => {
         }));
 };
 
-const TagTree = ({ tags = [], onTagClick, onTagEdit, maxHeight, flex }) => {
+const TagTree = ({ tags = [], onTagClick, onTagEdit, maxHeight, flex, createBtn = <></> }) => {
     const tagTree = buildTree(tags);
 
     return <Paper
@@ -133,14 +133,14 @@ const TagTree = ({ tags = [], onTagClick, onTagEdit, maxHeight, flex }) => {
         }}
     >
         <List sx={{ minWidth: 'max-content' }}>
-            {tagTree.map(tag => (
+            {[createBtn, ...tagTree.map(tag => (
                 <TagItem
                     key={tag.id}
                     tag={tag}
                     onTagClick={onTagClick}
                     onTagEdit={onTagEdit}
                 />
-            ))}
+            ))]}
         </List>
     </Paper>;
 };

@@ -11,7 +11,7 @@ import {
     Stack, RadioGroup, FormControlLabel, Radio, Chip, TextField, FormControl, FormLabel,
     Typography, Paper, InputLabel, MenuItem, Select, Checkbox,
 } from '@mui/material';
-import { Check as CheckIcon, Close as CloseIcon } from '@mui/icons-material';
+import { Add, Check as CheckIcon, Close as CloseIcon } from '@mui/icons-material';
 import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
 import { AdapterDayjs } from '@mui/x-date-pickers/AdapterDayjs';
 import { DateTimePicker } from '@mui/x-date-pickers/DateTimePicker';
@@ -109,9 +109,13 @@ const HomePage = () => {
             size="small"
             onClick={() => removeTagFromList(tag.id, setTagList)}
             sx={{
-                backgroundColor: tag.color,
+                bgcolor: tag.color,
                 marginBottom: '5px !important',
                 color: 'white',
+                '&:hover': {
+                    bgcolor: tag.color,
+                    opacity: 0.8
+                }
             }}
         />
     ), [removeTagFromList]);
@@ -392,7 +396,7 @@ const HomePage = () => {
     }, [excludedTags, includeTagsSwitch, includedTags, setIncludedTags, setExcludedTags]);
 
     const handleTagEdit = useCallback(tag => {
-        console.log('editing tag: ' + JSON.stringify(tag));
+        setEditedTag(tag);
     }, []);
 
     const handleTextChange = useCallback((e) => {
@@ -420,8 +424,7 @@ const HomePage = () => {
                 boxSizing: 'border-box'
             }}
         >
-            <button onClick={handleLogout}>Выйти из профиля</button>
-            <button onClick={() => setEditedTag({})}>Создать тег</button>
+            <Button variant='contained' size='small' onClick={handleLogout}>Выйти из профиля</Button>
         </Box>
         <Box
             sx={{
@@ -433,10 +436,24 @@ const HomePage = () => {
             <Stack direction="row" sx={{ width: '100%', display: 'flex' }}>
                 <MemoizedTagTree
                     tags={allTags}
-                    onTagClick={setEditedTag}
+                    onTagClick={handleTagClick}
                     onTagEdit={handleTagEdit}
                     maxHeight={'90vh'}
                     flex={0.2}
+                    createBtn={<Chip
+                        icon={<Add color='white' />}
+                        label='Новый тег'
+                        onClick={() => setEditedTag({})}
+                        size='small'
+                        sx={{
+                            px: '3px', py: '15px', mb: '3px', ml: '4px',
+                            color: 'white',
+                            bgcolor: '#0000bb',
+                            '&:hover': {
+                                bgcolor: '#0000ee',
+                            }
+                        }}
+                    />}
                 />
                 <Stack
                     direction="column"
