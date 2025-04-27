@@ -1,6 +1,7 @@
 import axios from 'axios';
 import CommentList from '../components/CommentList';
 import TagTree from '../components/TagTree';
+import EditTag from '../components/EditTag';
 
 import React, { useEffect, useState, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
@@ -92,6 +93,8 @@ const HomePage = () => {
     const [includeTagsSwitch, setIncludeTagsSwitch] = useState(true);
     const [isFilterDialogOpen, setIsFilterDialogOpen] = useState(false);
     const [isFilterApplying, setIsFilterApplying] = useState(false);
+
+    const [editedTag, setEditedTag] = useState(null);
 
     const navigate = useNavigate();
 
@@ -418,6 +421,7 @@ const HomePage = () => {
             }}
         >
             <button onClick={handleLogout}>Выйти из профиля</button>
+            <button onClick={() => setEditedTag({})}>Создать тег</button>
         </Box>
         <Box
             sx={{
@@ -429,7 +433,7 @@ const HomePage = () => {
             <Stack direction="row" sx={{ width: '100%', display: 'flex' }}>
                 <MemoizedTagTree
                     tags={allTags}
-                    onTagClick={handleTagClick}
+                    onTagClick={setEditedTag}
                     onTagEdit={handleTagEdit}
                     maxHeight={'90vh'}
                     flex={0.2}
@@ -465,249 +469,254 @@ const HomePage = () => {
                     />
                 </Stack>
             </Stack>
+        </Box >
 
-            <Dialog
-                open={isFilterDialogOpen}
-                onClose={handleFilterDialogClose}
-                scroll='paper'
-                maxWidth={'90vw'}
-            >
-                <DialogTitle align="center">Поиск комментариев</DialogTitle>
-                <DialogContent>
-                    <Stack direction="row" spacing={2} style={{ display: 'flex' }}>
-                        <MemoizedTagTree
-                            tags={allTags}
-                            onTagClick={handleTagClick}
-                            onTagEdit={null}
-                            maxHeight={'55vh'}
+        <Dialog
+            open={isFilterDialogOpen}
+            onClose={handleFilterDialogClose}
+            scroll='paper'
+            maxWidth={'90vw'}
+        >
+            <DialogTitle align="center">Поиск комментариев</DialogTitle>
+            <DialogContent>
+                <Stack direction="row" spacing={2} style={{ display: 'flex' }}>
+                    <MemoizedTagTree
+                        tags={allTags}
+                        onTagClick={handleTagClick}
+                        onTagEdit={null}
+                        maxHeight={'55vh'}
+                    />
+                    <Stack direction="column" spacing={2}>
+                        <RadioGroup
+                            name="tag-include-exclude"
+                            value={includeTagsSwitch}
+                            onChange={handleTagIncludeSwitch}
+                        >
+                            {[
+                                { formValue: true, formLabel: 'Включить:', tagList: includedTags, setTagList: setIncludedTags },
+                                { formValue: false, formLabel: 'Исключить:', tagList: excludedTags, setTagList: setExcludedTags },
+                            ].map(row => (
+                                <Stack
+                                    direction="row"
+                                    sx={{
+                                        width: '50vw',
+                                        display: 'flex',
+                                        alignItems: 'center'
+                                    }}
+                                    key={row.formLabel}
+                                >
+                                    <FormControlLabel value={row.formValue} label={row.formLabel} control={<Radio />} />
+                                    <Stack direction="row" flexWrap="wrap" spacing={0.5}>
+                                        {row.tagList.map(tag => renderTag(tag, row.setTagList))}
+                                    </Stack>
+                                </Stack>
+                            ))}
+                        </RadioGroup>
+
+                        <TextField
+                            label="Поиск по тексту комментария"
+                            variant="outlined"
+                            value={textSubstr}
+                            onChange={handleTextChange}
+                            fullWidth
+                            margin="normal"
                         />
-                        <Stack direction="column" spacing={2}>
-                            <RadioGroup
-                                name="tag-include-exclude"
-                                value={includeTagsSwitch}
-                                onChange={handleTagIncludeSwitch}
-                            >
-                                {[
-                                    { formValue: true, formLabel: 'Включить:', tagList: includedTags, setTagList: setIncludedTags },
-                                    { formValue: false, formLabel: 'Исключить:', tagList: excludedTags, setTagList: setExcludedTags },
-                                ].map(row => (
-                                    <Stack
-                                        direction="row"
-                                        sx={{
-                                            width: '50vw',
-                                            display: 'flex',
-                                            alignItems: 'center'
-                                        }}
-                                        key={row.formLabel}
-                                    >
-                                        <FormControlLabel value={row.formValue} label={row.formLabel} control={<Radio />} />
-                                        <Stack direction="row" flexWrap="wrap" spacing={0.5}>
-                                            {row.tagList.map(tag => renderTag(tag, row.setTagList))}
-                                        </Stack>
-                                    </Stack>
-                                ))}
-                            </RadioGroup>
 
-                            <TextField
-                                label="Поиск по тексту комментария"
-                                variant="outlined"
-                                value={textSubstr}
-                                onChange={handleTextChange}
-                                fullWidth
-                                margin="normal"
-                            />
-
-                            <Stack direction="row" spacing={3} sx={{ width: '100%' }}>
-                                <FormControl>
-                                    <FormLabel id="filter-analyzed">Искать комментарии, которые:</FormLabel>
-                                    <RadioGroup row
-                                        aria-labelledby="filter-analyzed"
-                                        value={analyzed}
-                                        onChange={e => setAnalyzed(e.target.value)}
-                                    >
-                                        <FormControlLabel value={'true'} control={<Radio />} label="Прошли анализ" />
-                                        <FormControlLabel value={'false'} control={<Radio />} label="Не прошли анализ" />
-                                        <FormControlLabel value={'null'} control={<Radio />} label="Не важно" />
-                                    </RadioGroup>
-                                </FormControl>
-                                <FormControl
-                                    sx={{
-                                        width: '250px',
-                                        marginTop: '16px !important',
-                                        ...classSelectStyle
-                                    }}
+                        <Stack direction="row" spacing={3} sx={{ width: '100%' }}>
+                            <FormControl>
+                                <FormLabel id="filter-analyzed">Искать комментарии, которые:</FormLabel>
+                                <RadioGroup row
+                                    aria-labelledby="filter-analyzed"
+                                    value={analyzed}
+                                    onChange={e => setAnalyzed(e.target.value)}
                                 >
-                                    <InputLabel id="sentiments-label" shrink>Настроения</InputLabel>
-                                    <Select
-                                        labelId="sentiments-label"
-                                        label="Настроения"
-                                        multiple
-                                        value={[]}
-                                        displayEmpty
-                                        sx={{ '& .MuiSelect-select': { pt: 2, pl: 1.5 } }}
-                                    >
-                                        {sentiments.map(item => (
-                                            <MenuItem key={item.name} dense>
-                                                {renderSelectItem(item, 'sentiment')}
-                                            </MenuItem>
-                                        ))}
-                                    </Select>
-                                </FormControl>
-                                <FormControl
-                                    sx={{
-                                        width: '250px',
-                                        marginTop: '16px !important',
-                                        ...classSelectStyle
-                                    }}
-                                >
-                                    <InputLabel id="emotionts-label" shrink>Эмоции</InputLabel>
-                                    <Select
-                                        labelId="emotionts-label"
-                                        label="Эмоции"
-                                        multiple
-                                        value={[]}
-                                        displayEmpty
-                                        sx={{ '& .MuiSelect-select': { pt: 2, pl: 1.5 } }}
-                                    >
-                                        {emotions.map(item => (
-                                            <MenuItem key={item.name} dense>
-                                                {renderSelectItem(item, 'emotion')}
-                                            </MenuItem>
-                                        ))}
-                                    </Select>
-                                </FormControl>
-                            </Stack>
-
-                            <LocalizationProvider
-                                dateAdapter={AdapterDayjs}
-                                adapterLocale="ru"
-                                localeText={localeText}
+                                    <FormControlLabel value={'true'} control={<Radio />} label="Прошли анализ" />
+                                    <FormControlLabel value={'false'} control={<Radio />} label="Не прошли анализ" />
+                                    <FormControlLabel value={'null'} control={<Radio />} label="Не важно" />
+                                </RadioGroup>
+                            </FormControl>
+                            <FormControl
+                                sx={{
+                                    width: '250px',
+                                    marginTop: '16px !important',
+                                    ...classSelectStyle
+                                }}
                             >
-                                <Typography variant="h6">Дата создания</Typography>
-                                <Box>
-                                    <Stack
-                                        direction="row"
-                                        spacing={2}
-                                        sx={{
-                                            display: 'flex',
-                                            width: '100%',
-                                            alignItems: 'flex-start'
-                                        }}
-                                    >
-                                        <DateTimePicker
-                                            key={createdFrom ? 'filled-start' : 'empty-start'}
-                                            label="Начальная дата"
-                                            value={createdFrom}
-                                            onChange={newValue => setCreatedFrom(newValue)}
-                                            maxDateTime={createdTo}
-                                            format={dateTimeFormat}
-                                            ampm={false}
-                                            views={['year', 'month', 'day', 'hours', 'minutes', 'seconds']}
-                                            slotProps={{
-                                                textField: { fullWidth: true },
-                                                actionBar: {
-                                                    actions: ['accept', 'cancel', 'today', 'clear'],
-                                                },
-                                            }}
-                                            sx={{ flex: 1, minWidth: 200 }}
-                                        />
-                                        <DateTimePicker
-                                            key={createdTo ? 'filled-end' : 'empty-end'}
-                                            label="Конечная дата"
-                                            value={createdTo}
-                                            onChange={newValue => setCreatedTo(newValue)}
-                                            minDateTime={createdFrom}
-                                            format={dateTimeFormat}
-                                            ampm={false}
-                                            views={['year', 'month', 'day', 'hours', 'minutes', 'seconds']}
-                                            slotProps={{
-                                                textField: { fullWidth: true },
-                                                actionBar: {
-                                                    actions: ['accept', 'cancel', 'today', 'clear'],
-                                                },
-                                            }}
-                                            sx={{ flex: 1, minWidth: 200 }}
-                                        />
-                                    </Stack>
-                                </Box>
-                                <Typography variant="h6">Дата изменения</Typography>
-                                <Box>
-                                    <Stack
-                                        direction="row"
-                                        spacing={2}
-                                        sx={{
-                                            display: 'flex',
-                                            width: '100%',
-                                            alignItems: 'flex-start'
-                                        }}
-                                    >
-                                        <DateTimePicker
-                                            key={modifiedFrom ? 'filled-m-start' : 'empty-m-start'}
-                                            label="Начальная дата"
-                                            value={modifiedFrom}
-                                            onChange={newValue => setModifiedFrom(newValue)}
-                                            maxDateTime={modifiedTo}
-                                            format={dateTimeFormat}
-                                            ampm={false}
-                                            views={['year', 'month', 'day', 'hours', 'minutes', 'seconds']}
-                                            slotProps={{
-                                                textField: { fullWidth: true },
-                                                actionBar: {
-                                                    actions: ['accept', 'cancel', 'today', 'clear'],
-                                                },
-                                            }}
-                                            sx={{ flex: 1, minWidth: 200 }}
-                                        />
-                                        <DateTimePicker
-                                            key={modifiedTo ? 'filled-m-end' : 'empty-m-end'}
-                                            label="Конечная дата"
-                                            value={modifiedTo}
-                                            onChange={newValue => setModifiedTo(newValue)}
-                                            minDateTime={modifiedFrom}
-                                            format={dateTimeFormat}
-                                            ampm={false}
-                                            views={['year', 'month', 'day', 'hours', 'minutes', 'seconds']}
-                                            slotProps={{
-                                                textField: { fullWidth: true },
-                                                actionBar: {
-                                                    actions: ['accept', 'cancel', 'today', 'clear'],
-                                                },
-                                            }}
-                                            sx={{ flex: 1, minWidth: 200 }}
-                                        />
-                                    </Stack>
-                                </Box>
-                            </LocalizationProvider>
+                                <InputLabel id="sentiments-label" shrink>Настроения</InputLabel>
+                                <Select
+                                    labelId="sentiments-label"
+                                    label="Настроения"
+                                    multiple
+                                    value={[]}
+                                    displayEmpty
+                                    sx={{ '& .MuiSelect-select': { pt: 2, pl: 1.5 } }}
+                                >
+                                    {sentiments.map(item => (
+                                        <MenuItem key={item.name} dense>
+                                            {renderSelectItem(item, 'sentiment')}
+                                        </MenuItem>
+                                    ))}
+                                </Select>
+                            </FormControl>
+                            <FormControl
+                                sx={{
+                                    width: '250px',
+                                    marginTop: '16px !important',
+                                    ...classSelectStyle
+                                }}
+                            >
+                                <InputLabel id="emotionts-label" shrink>Эмоции</InputLabel>
+                                <Select
+                                    labelId="emotionts-label"
+                                    label="Эмоции"
+                                    multiple
+                                    value={[]}
+                                    displayEmpty
+                                    sx={{ '& .MuiSelect-select': { pt: 2, pl: 1.5 } }}
+                                >
+                                    {emotions.map(item => (
+                                        <MenuItem key={item.name} dense>
+                                            {renderSelectItem(item, 'emotion')}
+                                        </MenuItem>
+                                    ))}
+                                </Select>
+                            </FormControl>
                         </Stack>
+
+                        <LocalizationProvider
+                            dateAdapter={AdapterDayjs}
+                            adapterLocale="ru"
+                            localeText={localeText}
+                        >
+                            <Typography variant="h6">Дата создания</Typography>
+                            <Box>
+                                <Stack
+                                    direction="row"
+                                    spacing={2}
+                                    sx={{
+                                        display: 'flex',
+                                        width: '100%',
+                                        alignItems: 'flex-start'
+                                    }}
+                                >
+                                    <DateTimePicker
+                                        key={createdFrom ? 'filled-start' : 'empty-start'}
+                                        label="Начальная дата"
+                                        value={createdFrom}
+                                        onChange={newValue => setCreatedFrom(newValue)}
+                                        maxDateTime={createdTo}
+                                        format={dateTimeFormat}
+                                        ampm={false}
+                                        views={['year', 'month', 'day', 'hours', 'minutes', 'seconds']}
+                                        slotProps={{
+                                            textField: { fullWidth: true },
+                                            actionBar: {
+                                                actions: ['accept', 'cancel', 'today', 'clear'],
+                                            },
+                                        }}
+                                        sx={{ flex: 1, minWidth: 200 }}
+                                    />
+                                    <DateTimePicker
+                                        key={createdTo ? 'filled-end' : 'empty-end'}
+                                        label="Конечная дата"
+                                        value={createdTo}
+                                        onChange={newValue => setCreatedTo(newValue)}
+                                        minDateTime={createdFrom}
+                                        format={dateTimeFormat}
+                                        ampm={false}
+                                        views={['year', 'month', 'day', 'hours', 'minutes', 'seconds']}
+                                        slotProps={{
+                                            textField: { fullWidth: true },
+                                            actionBar: {
+                                                actions: ['accept', 'cancel', 'today', 'clear'],
+                                            },
+                                        }}
+                                        sx={{ flex: 1, minWidth: 200 }}
+                                    />
+                                </Stack>
+                            </Box>
+                            <Typography variant="h6">Дата изменения</Typography>
+                            <Box>
+                                <Stack
+                                    direction="row"
+                                    spacing={2}
+                                    sx={{
+                                        display: 'flex',
+                                        width: '100%',
+                                        alignItems: 'flex-start'
+                                    }}
+                                >
+                                    <DateTimePicker
+                                        key={modifiedFrom ? 'filled-m-start' : 'empty-m-start'}
+                                        label="Начальная дата"
+                                        value={modifiedFrom}
+                                        onChange={newValue => setModifiedFrom(newValue)}
+                                        maxDateTime={modifiedTo}
+                                        format={dateTimeFormat}
+                                        ampm={false}
+                                        views={['year', 'month', 'day', 'hours', 'minutes', 'seconds']}
+                                        slotProps={{
+                                            textField: { fullWidth: true },
+                                            actionBar: {
+                                                actions: ['accept', 'cancel', 'today', 'clear'],
+                                            },
+                                        }}
+                                        sx={{ flex: 1, minWidth: 200 }}
+                                    />
+                                    <DateTimePicker
+                                        key={modifiedTo ? 'filled-m-end' : 'empty-m-end'}
+                                        label="Конечная дата"
+                                        value={modifiedTo}
+                                        onChange={newValue => setModifiedTo(newValue)}
+                                        minDateTime={modifiedFrom}
+                                        format={dateTimeFormat}
+                                        ampm={false}
+                                        views={['year', 'month', 'day', 'hours', 'minutes', 'seconds']}
+                                        slotProps={{
+                                            textField: { fullWidth: true },
+                                            actionBar: {
+                                                actions: ['accept', 'cancel', 'today', 'clear'],
+                                            },
+                                        }}
+                                        sx={{ flex: 1, minWidth: 200 }}
+                                    />
+                                </Stack>
+                            </Box>
+                        </LocalizationProvider>
                     </Stack>
-                </DialogContent>
-                <DialogActions sx={{ justifyContent: 'space-between', marginInline: '20px', marginBottom: '10px' }}>
+                </Stack>
+            </DialogContent>
+            <DialogActions sx={{ justifyContent: 'space-between', marginInline: '20px', marginBottom: '10px' }}>
+                <Button
+                    variant="outlined"
+                    color="error"
+                    onClick={resetFilters}
+                >
+                    Сбросить фильтры
+                </Button>
+                <Box>
                     <Button
                         variant="outlined"
-                        color="error"
-                        onClick={resetFilters}
+                        onClick={handleFilterDialogClose}
+                        sx={{ marginInline: '30px' }}
                     >
-                        Сбросить фильтры
+                        Отмена
                     </Button>
-                    <Box>
-                        <Button
-                            variant="outlined"
-                            onClick={handleFilterDialogClose}
-                            sx={{ marginInline: '30px' }}
-                        >
-                            Отмена
-                        </Button>
-                        <Button
-                            onClick={handleFilterApplying}
-                            variant="contained"
-                            disabled={isFilterApplying}
-                        >
-                            {isFilterApplying ? <CircularProgress size={24} /> : 'Применить'}
-                        </Button>
-                    </Box>
-                </DialogActions>
-            </Dialog>
-        </Box >
+                    <Button
+                        onClick={handleFilterApplying}
+                        variant="contained"
+                        disabled={isFilterApplying}
+                    >
+                        {isFilterApplying ? <CircularProgress size={24} /> : 'Применить'}
+                    </Button>
+                </Box>
+            </DialogActions>
+        </Dialog>
+        <EditTag
+            tagTree={tagsAsObject}
+            tag={editedTag}
+            onTagEdit={() => setEditedTag(null)}
+        />
     </>;
 };
 
