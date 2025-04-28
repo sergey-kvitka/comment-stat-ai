@@ -3,6 +3,8 @@ import CommentList from '../components/CommentList';
 import TagTree from '../components/TagTree';
 import EditTag from '../components/EditTag';
 
+import useNotificationApi from '../contexts/NotificationContext';
+
 import React, { useEffect, useState, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 
@@ -27,18 +29,43 @@ localeText.okButtonLabel = 'ОК';
 localeText.cancelButtonLabel = 'Отмена';
 
 const mapErrorAfterReq = err => {
-    if (err.response) {
+    const response = err.response;
+    const message = err.message;
+
+    if (!(response || err.request)) {
         return {
-            message: err.response.data?.message || `HTTP error ${err.response.status}`,
-            status: err.response.status,
-            data: err.response.data
-        };
-    } else {
-        return {
-            message: err.message || 'Network error',
-            isNetworkError: true
+            message: message || 'Неизвестная ошибка',
+            type: 'setup_error'
         };
     }
+    if (response) {
+        return {
+            message: response.data?.message || `Неизвестная ошибка сервиса! Статус: ${response.status}.`,
+            status: response.status,
+            data: response.data,
+            type: 'server_error'
+        };
+    }
+    if (err.code === 'ECONNREFUSED') {
+        return {
+            message: 'Ошибка соединения — сервис недоступен! Попробуйте позже или перезагрузите страницу.',
+            code: err.code,
+            isNetworkError: true,
+            type: 'connection_refused'
+        };
+    } else if (message && message.includes('Network Error')) {
+        return {
+            message: 'Ошибка сети! Пожалуйста, проверьте интернет-соединение и перезагрузите страницу.',
+            isNetworkError: true,
+            type: 'network_error'
+        };
+    }
+    return {
+        message: message || 'Неизвестная ошибка запроса',
+        code: err.code,
+        isNetworkError: true,
+        type: 'request_error'
+    };
 };
 
 const MemoizedTagTree = React.memo(TagTree);
@@ -97,6 +124,7 @@ const HomePage = () => {
     const [editedTag, setEditedTag] = useState(null);
 
     const navigate = useNavigate();
+    const { notification } = useNotificationApi();
 
     const removeTagFromList = useCallback((id, setNewList) => {
         setNewList(prev => [...prev.filter(tag => tag.id !== id)]);
@@ -128,10 +156,17 @@ const HomePage = () => {
             );
             setAllTags(response.data.tags);
         } catch (err) {
-            console.error(err.response?.status);
-            console.error(err);
+            const error = mapErrorAfterReq(err);
+            notification(
+                error.message,
+                error.isNetworkError ? 'Сетевая ошибка' : 'Ошибка загрузки тегов',
+                {
+                    severity: 'error',
+                    autoHideDuration: 10000
+                }
+            );
         }
-    }, []);
+    }, [notification]);
 
     const loadComments = useCallback(async () => {
         try {
@@ -139,12 +174,19 @@ const HomePage = () => {
                 `${process.env.REACT_APP_BACKEND_URL}/api/comment/all`,
                 { withCredentials: true }
             );
-            setAllComments(response.data.comments);
+            setAllComments(response.data?.comments ?? []);
         } catch (err) {
-            console.error(err.response?.status);
-            console.error(err);
+            const error = mapErrorAfterReq(err);
+            notification(
+                error.message,
+                error.isNetworkError ? 'Сетевая ошибка' : 'Ошибка загрузки комментариев',
+                {
+                    severity: 'error',
+                    autoHideDuration: 10000
+                }
+            );
         }
-    }, []);
+    }, [notification]);
 
     useEffect(() => {
         loadComments();
@@ -152,44 +194,50 @@ const HomePage = () => {
     }, [loadComments, loadTags]);
 
     const getCommentsByFilters = useCallback(async () => {
-        try {
-            const response = await axios.post(
-                `${process.env.REACT_APP_BACKEND_URL}/api/comment/getByFilters`,
-                {
-                    textSubstr: textSubstr.trim() ?? null,
-                    analyzed: (analyzed === 'null') ? null : Boolean(analyzed === 'true'),
-                    created: {
-                        from: createdFrom ? formatISO(createdFrom) : null,
-                        to: createdTo ? formatISO(createdTo) : null,
-                    },
-                    modified: {
-                        from: modifiedFrom ? formatISO(modifiedFrom) : null,
-                        to: modifiedTo ? formatISO(modifiedTo) : null,
-                    },
-                    include: {
-                        tagIds: includedTags.map(tag => tag.id),
-                        emotions: includedEmotions,
-                        sentiments: includedSentiments,
-                    },
-                    exclude: {
-                        tagIds: excludedTags.map(tag => tag.id),
-                        emotions: excludedEmotions,
-                        sentiments: excludedSentiments,
-                    },
+        const response = await axios.post(
+            `${process.env.REACT_APP_BACKEND_URL}/api/comment/getByFilters`,
+            {
+                textSubstr: textSubstr.trim() ?? null,
+                analyzed: (analyzed === 'null') ? null : Boolean(analyzed === 'true'),
+                created: {
+                    from: createdFrom ? formatISO(createdFrom) : null,
+                    to: createdTo ? formatISO(createdTo) : null,
                 },
-                { withCredentials: true }
-            );
-            if (response.status === 204) {
-                return [];
-            }
-            if (!(response.data?.comments)) {
-                console.error('Неверный формат ответа сервера (/api/comment/getByFilters)');
-            }
-            return response.data?.comments ?? [];
-        } catch (err) {
-            throw mapErrorAfterReq(err);
+                modified: {
+                    from: modifiedFrom ? formatISO(modifiedFrom) : null,
+                    to: modifiedTo ? formatISO(modifiedTo) : null,
+                },
+                include: {
+                    tagIds: includedTags.map(tag => tag.id),
+                    emotions: includedEmotions,
+                    sentiments: includedSentiments,
+                },
+                exclude: {
+                    tagIds: excludedTags.map(tag => tag.id),
+                    emotions: excludedEmotions,
+                    sentiments: excludedSentiments,
+                },
+            },
+            { withCredentials: true }
+        );
+        if (response.status === 204) {
+            return [];
         }
+        if (!(response.data?.comments)) {
+            notification(
+                'Фильтрация: неверный формат ответа от сервера!',
+                'Внутренняя ошибка',
+                {
+                    severity: 'error',
+                    autoHideDuration: 10000
+                }
+            );
+            console.error('Неверный формат ответа сервера (/api/comment/getByFilters)');
+            return null;
+        }
+        return response.data.comments;
     }, [
+        notification,
         textSubstr, analyzed, createdFrom, createdTo, modifiedFrom, modifiedTo,
         excludedEmotions, excludedSentiments, excludedTags, includedEmotions, includedSentiments, includedTags
     ]);
@@ -212,7 +260,9 @@ const HomePage = () => {
         setModifiedFrom();
         setCreatedTo();
         setModifiedTo();
+        notification('Фильтры сброшены!', null);
     }, [
+        notification,
         setIncludedTags, setIncludedSentiments, setIncludedEmotions,
         setExcludedTags, setExcludedSentiments, setExcludedEmotions,
         setTextSubstr, setAnalyzed, setCreatedFrom, setModifiedFrom, setCreatedTo, setModifiedTo
@@ -310,20 +360,43 @@ const HomePage = () => {
     }, []);
 
     const handleFilterApplying = useCallback(async () => {
-        if (isFilterApplying) return;
+        if (isFilterApplying) { return; }
         setIsFilterApplying(true);
         try {
             const comments = await getCommentsByFilters();
+            if (comments?.length === 0) {
+                notification(
+                    'Комментарии не найдены! Попробуйте изменить параметры фильтрации.',
+                    null,
+                    { severity: 'waring' }
+                );
+            }
             setAllComments([...comments]);
+            if (comments?.length === 0) {
+                notification(
+                    'Комментарии не найдены! Попробуйте изменить параметры фильтрации.',
+                    null,
+                    { severity: 'waring' }
+                );
+            } else {
+                notification('Фильтры применены!', null, { severity: 'success' });
+            }
             handleFilterDialogClose();
         } catch (err) {
-            // todo: change alerts everywhere
             // todo: handle 401 everywhere
-            alert(err.message);
+            const error = mapErrorAfterReq(err);
+            notification(
+                error.message,
+                error.isNetworkError ? 'Сетевая ошибка' : 'Ошибка загрузки тегов',
+                {
+                    severity: 'error',
+                    autoHideDuration: 10000
+                }
+            );
         } finally {
             setIsFilterApplying(false);
         }
-    }, [getCommentsByFilters, handleFilterDialogClose, isFilterApplying]);
+    }, [getCommentsByFilters, handleFilterDialogClose, isFilterApplying, notification]);
 
     const handleAddComment = useCallback(async commentText => {
         try {
@@ -332,7 +405,7 @@ const HomePage = () => {
                 {
                     comment: {
                         id: null,
-                        text: commentText,
+                        text: commentText.trim(),
                         sentiment: null,
                         emotion: null,
                         analyzed: false
@@ -342,13 +415,21 @@ const HomePage = () => {
             );
             setAllComments(prev => [response.data.comment, ...prev]);
         } catch (err) {
-            alert(err.response?.data?.message || 'An error occurred');
+            const error = mapErrorAfterReq(err);
+            notification(
+                error.message,
+                error.isNetworkError && 'Сетевая ошибка',
+                {
+                    severity: 'error',
+                    autoHideDuration: 10000
+                }
+            );
         }
-    }, []);
+    }, [notification]);
 
     const handleAnalyze = useCallback(async ids => {
         if (ids.length === 0) {
-            alert('Вы не выбрали ни одного комментария для анализа');
+            notification('Вы не выбрали ни одного комментария для анализа', null, { severity: 'warning' });
             return;
         }
         try {
@@ -368,11 +449,24 @@ const HomePage = () => {
                 }
                 return newComments;
             });
+            const amount = Object.keys(analyzedComments).length ?? 0;
+            notification(
+                `Комментарии проанализированы успешно! ${amount ? (' Количество: ' + amount) : ''}`,
+                null,
+                { severity: 'success' }
+            );
         } catch (err) {
-            console.error(err);
-            alert(err.response?.data?.message || 'An error occurred');
+            const error = mapErrorAfterReq(err);
+            notification(
+                error.message,
+                error.isNetworkError ? 'Сетевая ошибка' : 'Ошибка анализа комментариев',
+                {
+                    severity: 'error',
+                    autoHideDuration: 10000
+                }
+            );
         }
-    }, []);
+    }, [notification]);
 
     const tagsAsObject = useMemo(() => {
         const tagsObj = {};
@@ -441,6 +535,7 @@ const HomePage = () => {
                     maxHeight={'90vh'}
                     flex={0.2}
                     createBtn={<Chip
+                        key={'new-tag-chip-btn'}
                         icon={<Add color='white' />}
                         label='Новый тег'
                         onClick={() => setEditedTag({})}
@@ -483,6 +578,7 @@ const HomePage = () => {
                         tags={tagsAsObject}
                         onAddComment={handleAddComment}
                         onAnalyze={handleAnalyze}
+                        errMapper={mapErrorAfterReq}
                     />
                 </Stack>
             </Stack>
@@ -502,6 +598,7 @@ const HomePage = () => {
                         onTagClick={handleTagClick}
                         onTagEdit={null}
                         maxHeight={'55vh'}
+                        createBtn={<React.Fragment key={'tag-tree-empty-btn'} />}
                     />
                     <Stack direction="column" spacing={2}>
                         <RadioGroup

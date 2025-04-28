@@ -4,13 +4,16 @@ import {
     Paper, Button, TextField, Dialog, DialogActions, DialogContent, DialogTitle, CircularProgress
 } from '@mui/material';
 import { NoteAdd, EditSquare } from '@mui/icons-material';
+import useNotificationApi from '../contexts/NotificationContext';
 
-const CommentList = ({ comments, tags, onAddComment, onAnalyze }) => {
+const CommentList = ({ comments, tags, onAddComment, onAnalyze, errMapper }) => {
     const [selected, setSelected] = useState([]);
     const [selectAll, setSelectAll] = useState(false);
     const [isDialogOpen, setIsDialogOpen] = useState(false);
     const [newCommentText, setNewCommentText] = useState('');
     const [isLoading, setIsLoading] = useState(false);
+
+    const { notification } = useNotificationApi();
 
     // Обработчики для выбора комментариев
     const handleToggle = id => {
@@ -46,9 +49,18 @@ const CommentList = ({ comments, tags, onAddComment, onAnalyze }) => {
         setIsLoading(true);
         try {
             await onAddComment(newCommentText);
+            notification('Комментарий успешно создан!', null, { severity: 'success' });
             handleDialogClose();
-        } catch (error) {
-            console.error('Ошибка при добавлении комментария:', error);
+        } catch (err) {
+            const error = errMapper(err);
+            notification(
+                error.message,
+                error.isNetworkError ? 'Сетевая ошибка' : 'Ошибка загрузки комментария',
+                {
+                    severity: 'error',
+                    autoHideDuration: 10000
+                }
+            );
         } finally {
             setIsLoading(false);
         }
@@ -73,6 +85,7 @@ const CommentList = ({ comments, tags, onAddComment, onAnalyze }) => {
                 size="small"
             />
         }
+        // todo общий источник
         const sentimentData = {
             positive: { color: '#00BB00', text: 'Позитивный' },
             neutral: { color: '#AAAAAA', text: 'Нейтральный' },
