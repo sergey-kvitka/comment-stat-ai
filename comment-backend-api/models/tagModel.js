@@ -37,6 +37,19 @@ class Tag {
         return result.rows[0];
     }
 
+    static async update({ id, name, color }) {
+        const result = await db.query(/* sql */ `
+            update tags set
+                name = coalesce($1, name),
+                color = coalesce($2, color)
+            where id = $3
+            returning id, name, color, parent_id, user_id`,
+            [name, color, id]
+        );
+        mapInPlace(result.rows[0]);
+        return result.rows[0];
+    }
+
     static async findById(id) {
         const result = await db.query(`select * from tags where id = $1`, [id]);
         mapInPlace(result.rows[0]);
@@ -44,7 +57,7 @@ class Tag {
     }
 
     static async findByIdList(ids) {
-        const result = await db.query( /* sql */ `
+        const result = await db.query(/* sql */ `
             select * from tags where id in (
                 select json_array_elements_text($1::json)::bigint
             )`,
@@ -71,6 +84,15 @@ class Tag {
         const tags = result.rows;
         tags.forEach(tag => mapInPlace(tag));
         return tags;
+    }
+
+    static async deleteAll(tagIds) {
+        await db.query(
+            `delete from tags where id = ` + (Array.isArray(tagIds)
+                ? /* sql */ `any($1::bigint[])`
+                : /* sql */ `$1`
+            ), tagIds
+        );
     }
 }
 
