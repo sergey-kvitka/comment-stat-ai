@@ -28,46 +28,6 @@ const localeText = ruRU.components.MuiLocalizationProvider.defaultProps.localeTe
 localeText.okButtonLabel = 'ОК';
 localeText.cancelButtonLabel = 'Отмена';
 
-const mapErrorAfterReq = err => {
-    const response = err.response;
-    const message = err.message;
-
-    if (!(response || err.request)) {
-        return {
-            message: message || 'Неизвестная ошибка',
-            type: 'setup_error'
-        };
-    }
-    if (response) {
-        return {
-            message: response.data?.message || `Неизвестная ошибка сервиса! Статус: ${response.status}.`,
-            status: response.status,
-            data: response.data,
-            type: 'server_error'
-        };
-    }
-    if (err.code === 'ECONNREFUSED') {
-        return {
-            message: 'Ошибка соединения — сервис недоступен! Попробуйте позже или перезагрузите страницу.',
-            code: err.code,
-            isNetworkError: true,
-            type: 'connection_refused'
-        };
-    } else if (message && message.includes('Network Error')) {
-        return {
-            message: 'Ошибка сети! Пожалуйста, проверьте интернет-соединение и перезагрузите страницу.',
-            isNetworkError: true,
-            type: 'network_error'
-        };
-    }
-    return {
-        message: message || 'Неизвестная ошибка запроса',
-        code: err.code,
-        isNetworkError: true,
-        type: 'request_error'
-    };
-};
-
 const MemoizedTagTree = React.memo(TagTree);
 const MemoizedCommentList = React.memo(CommentList);
 
@@ -121,7 +81,7 @@ const HomePage = () => {
     const [isFilterDialogOpen, setIsFilterDialogOpen] = useState(false);
     const [isFilterApplying, setIsFilterApplying] = useState(false);
 
-    const [editedTag, setEditedTag] = useState(null);
+    const [editedTag, setEditedTag] = useState({ mode: null, name: '' });
 
     const navigate = useNavigate();
     const { notification } = useNotificationApi();
@@ -490,8 +450,45 @@ const HomePage = () => {
     }, [excludedTags, includeTagsSwitch, includedTags, setIncludedTags, setExcludedTags]);
 
     const handleTagEdit = useCallback(tag => {
-        setEditedTag(tag);
+        setEditedTag({ ...tag, mode: 'edit' });
     }, []);
+
+    const onTagEdit = useCallback(async () => {
+        if (!editedTag) return;
+        if (editedTag.mode === 'new') {
+            try {
+                const response = await axios.post(
+                    `${process.env.REACT_APP_BACKEND_URL}/api/tag/save`,
+                    {
+                        tag: {
+                            name: editedTag.name,
+                            color: editedTag.color,
+                            parentId: null,
+                        }
+                    },
+                    { withCredentials: true }
+                );
+                const newTag = response.data.tag;
+                setAllTags(prev => [...prev, newTag]);
+                notification(
+                    `Тег "${newTag.name}" успешно создан!`,
+                    null,
+                    { severity: 'success' }
+                );
+            } catch (err) {
+                const error = mapErrorAfterReq(err);
+                notification(
+                    error.message,
+                    error.isNetworkError ? 'Сетевая ошибка' : 'Ошибка создания комментария',
+                    {
+                        severity: 'error',
+                        autoHideDuration: 10000
+                    }
+                );
+            }
+        }
+        setEditedTag({ mode: null, name: '' });
+    }, [editedTag, notification]);
 
     const handleTextChange = useCallback((e) => {
         setTextSubstr(e.target.value);
@@ -538,7 +535,14 @@ const HomePage = () => {
                         key={'new-tag-chip-btn'}
                         icon={<Add color='white' />}
                         label='Новый тег'
-                        onClick={() => setEditedTag({})}
+                        onClick={() => setEditedTag(prev => {
+                            const newTag = { ...prev };
+                            if (newTag.mode === 'edit') {
+                                newTag.name = '';
+                            }
+                            newTag.mode = 'new';
+                            return newTag;
+                        })}
                         size='small'
                         sx={{
                             px: '3px', py: '15px', mb: '3px', ml: '4px',
@@ -829,9 +833,50 @@ const HomePage = () => {
         <EditTag
             tagTree={tagsAsObject}
             tag={editedTag}
-            onTagEdit={() => setEditedTag(null)}
+            setTag={setEditedTag}
+            onTagEdit={onTagEdit}
         />
     </>;
+};
+
+function mapErrorAfterReq(err) {
+    const response = err.response;
+    const message = err.message;
+
+    if (!(response || err.request)) {
+        return {
+            message: message || 'Неизвестная ошибка',
+            type: 'setup_error'
+        };
+    }
+    if (response) {
+        return {
+            message: response.data?.message || `Неизвестная ошибка сервиса! Статус: ${response.status}.`,
+            status: response.status,
+            data: response.data,
+            type: 'server_error'
+        };
+    }
+    if (err.code === 'ECONNREFUSED') {
+        return {
+            message: 'Ошибка соединения — сервис недоступен! Попробуйте позже или перезагрузите страницу.',
+            code: err.code,
+            isNetworkError: true,
+            type: 'connection_refused'
+        };
+    } else if (message && message.includes('Network Error')) {
+        return {
+            message: 'Ошибка сети! Пожалуйста, проверьте интернет-соединение и перезагрузите страницу.',
+            isNetworkError: true,
+            type: 'network_error'
+        };
+    }
+    return {
+        message: message || 'Неизвестная ошибка запроса',
+        code: err.code,
+        isNetworkError: true,
+        type: 'request_error'
+    };
 };
 
 export default HomePage;

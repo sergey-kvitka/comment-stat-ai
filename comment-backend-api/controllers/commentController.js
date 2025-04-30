@@ -15,7 +15,6 @@ exports.all = async (req, res) => {
 
 exports.save = async (req, res) => {
     try {
-        req.body.comment.userId = req.user.id;
         const comment = await Comment.save({ ...req.body.comment, userId: req.user.id });
         res.status(200).json({ comment: comment });
     } catch (err) {
@@ -27,7 +26,6 @@ exports.save = async (req, res) => {
 exports.getByFilters = async (req, res) => {
     let comments;
     try {
-        console.debug(req.body);
         comments = await Comment.findByFilters({ ...req.body, userId: req.user.id });
     } catch (err) {
         console.error(err);
