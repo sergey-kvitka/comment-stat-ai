@@ -5,6 +5,7 @@ import {
 } from '@mui/material';
 import { NoteAdd, EditSquare } from '@mui/icons-material';
 import useNotificationApi from '../contexts/NotificationContext';
+import Tag from './Tag';
 
 const CommentList = ({ comments, tags, onAddComment, onAnalyze, errMapper }) => {
     const [selected, setSelected] = useState([]);
@@ -118,17 +119,7 @@ const CommentList = ({ comments, tags, onAddComment, onAnalyze, errMapper }) => 
         return comment.tagIds?.map(tagId => {
             const tag = tags[tagId];
             if (!tag) return null;
-            return <Chip
-                key={tagId}
-                label={tag.name}
-                sx={{
-                    background: tag.color,
-                    color: 'white',
-                    marginRight: '5px',
-                    marginTop: 1
-                }}
-                size="small"
-            />;
+            return <Tag text={tag.name} color={tag.color} styles={{ mt: 1, mr: '5px' }} />;
         });
     };
 

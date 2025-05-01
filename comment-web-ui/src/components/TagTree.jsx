@@ -1,15 +1,7 @@
 import React, { useState } from 'react';
-import {
-    List,
-    Paper,
-    ListItem,
-    ListItemButton,
-    Chip,
-    IconButton,
-    Collapse,
-    Box
-} from '@mui/material';
+import { List, Paper, ListItem, ListItemButton, IconButton, Collapse, Box } from '@mui/material';
 import { Edit as EditIcon, ExpandMore, ChevronRight } from '@mui/icons-material';
+import Tag from './Tag';
 
 const TagItem = ({ tag, level = 0, onTagClick, onTagEdit }) => {
     const [hovered, setHovered] = useState(false);
@@ -50,21 +42,7 @@ const TagItem = ({ tag, level = 0, onTagClick, onTagEdit }) => {
                         minWidth: 'max-content'
                     }}
                 >
-                    <Chip
-                        label={tag.name}
-                        size="small"
-                        sx={{
-                            backgroundColor: tag.color,
-                            color: 'white',
-                            marginBottom: '-5px',
-                            marginTop: '-5px',
-                            '& .MuiChip-label': {
-                                px: 1,
-                                whiteSpace: 'nowrap'
-                            },
-                            flexShrink: 0
-                        }}
-                    />
+                    <Tag text={tag.name} color={tag.color} styles={{ my: '-5px' }} />
                 </ListItemButton>
                 {
                     onTagEdit && <IconButton

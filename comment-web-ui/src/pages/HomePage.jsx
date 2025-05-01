@@ -1,5 +1,6 @@
 import axios from 'axios';
 import CommentList from '../components/CommentList';
+import Tag from '../components/Tag';
 import TagTree from '../components/TagTree';
 import EditTag from '../components/EditTag';
 
@@ -90,23 +91,15 @@ const HomePage = () => {
         setNewList(prev => [...prev.filter(tag => tag.id !== id)]);
     }, []);
 
-    const renderTag = useCallback((tag, setTagList) => (
-        <Chip
-            key={tag.id}
-            label={tag.name}
-            size="small"
-            onClick={() => removeTagFromList(tag.id, setTagList)}
-            sx={{
-                bgcolor: tag.color,
-                marginBottom: '5px !important',
-                color: 'white',
-                '&:hover': {
-                    bgcolor: tag.color,
-                    opacity: 0.8
-                }
-            }}
-        />
-    ), [removeTagFromList]);
+    const renderTag = useCallback((tag, setTagList) => <Tag
+        text={tag.name}
+        color={tag.color}
+        onClick={() => removeTagFromList(tag.id, setTagList)}
+        styles={{
+            marginBottom: '5px !important',
+            '&:hover': { bgcolor: tag.color, opacity: 0.8 }
+        }}
+    />, [removeTagFromList]);
 
     const loadTags = useCallback(async () => {
         try {
@@ -324,19 +317,11 @@ const HomePage = () => {
         setIsFilterApplying(true);
         try {
             const comments = await getCommentsByFilters();
-            if (comments?.length === 0) {
-                notification(
-                    'Комментарии не найдены! Попробуйте изменить параметры фильтрации.',
-                    null,
-                    { severity: 'waring' }
-                );
-            }
             setAllComments([...comments]);
             if (comments?.length === 0) {
                 notification(
                     'Комментарии не найдены! Попробуйте изменить параметры фильтрации.',
-                    null,
-                    { severity: 'waring' }
+                    null, { severity: 'warning' }
                 );
             } else {
                 notification('Фильтры применены!', null, { severity: 'success' });
@@ -601,10 +586,11 @@ const HomePage = () => {
                         tags={allTags}
                         onTagClick={handleTagClick}
                         onTagEdit={null}
-                        maxHeight={'55vh'}
+                        maxHeight={'60vh'}
+                        flex={0.25}
                         createBtn={<React.Fragment key={'tag-tree-empty-btn'} />}
                     />
-                    <Stack direction="column" spacing={2}>
+                    <Stack direction="column" spacing={2} flex={1}>
                         <RadioGroup
                             name="tag-include-exclude"
                             value={includeTagsSwitch}
@@ -640,8 +626,14 @@ const HomePage = () => {
                             margin="normal"
                         />
 
-                        <Stack direction="row" spacing={3} sx={{ width: '100%' }}>
-                            <FormControl>
+                        <Stack direction="row" spacing={1}>
+                            <FormControl
+                                sx={{
+                                    border: '1px solid rgba(0, 0, 0, 0.2)',
+                                    borderRadius: '4px',
+                                    p: 1.5, pt: 1, pb: 0.5
+                                }}
+                            >
                                 <FormLabel id="filter-analyzed">Искать комментарии, которые:</FormLabel>
                                 <RadioGroup row
                                     aria-labelledby="filter-analyzed"
