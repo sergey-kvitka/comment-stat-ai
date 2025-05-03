@@ -17,10 +17,6 @@ const EditTag = ({ tagTree, tagList, tag, setTag, onTagEdit, onTagsDelete }) => 
     const [newTagName, setNewTagName] = useState('');
     const [newTagcolor, setNewTagColor] = useState('#1565C0');
 
-    // todo: change parent tag
-    // const [parentTag, setParentTag] = useState(null);
-    // const [chooseParentOpen, setChooseParentOpen] = useState(false);
-
     const tagId = useMemo(() => {
         return tag?.id ?? null;
     }, [tag]);
@@ -28,9 +24,6 @@ const EditTag = ({ tagTree, tagList, tag, setTag, onTagEdit, onTagsDelete }) => 
     useEffect(() => {
         if (!(tag && tagList)) return;
         if (tag.color) setColor(tag.color);
-
-        // todo: change parent tag
-        // if (tag.parentId) setParentTag(tagList.find(t => t.id === tag.parentId) ?? null);
     }, [tag, tagList]);
 
     useEffect(() => {
@@ -222,11 +215,6 @@ const EditTag = ({ tagTree, tagList, tag, setTag, onTagEdit, onTagsDelete }) => 
                 </Button>
             </DialogActions>
         </Dialog>
-        { // todo: change parent tag
-        /* <Dialog
-            open={tag.mode === 'edit' && chooseParentOpen}
-            onClose={() => setChooseParentOpen(false)}
-        ></Dialog> */}
         <Dialog
             open={tag.mode === 'new'}
             onClose={close}
