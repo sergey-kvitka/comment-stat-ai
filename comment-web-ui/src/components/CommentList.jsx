@@ -119,7 +119,7 @@ const CommentList = ({ comments, tags, onAddComment, onAnalyze, errMapper }) => 
         return comment.tagIds?.map(tagId => {
             const tag = tags[tagId];
             if (!tag) return null;
-            return <Tag text={tag.name} color={tag.color} styles={{ mt: 1, mr: '5px' }} />;
+            return <Tag key={tagId} text={tag.name} color={tag.color} styles={{ mt: 1, mr: '5px' }} />;
         });
     };
 

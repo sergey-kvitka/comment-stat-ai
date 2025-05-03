@@ -21,3 +21,37 @@ exports.save = async (req, res) => {
         res.status(500).json({ message: err.message });
     }
 };
+
+exports.update = async (req, res) => {
+    try {
+        const userId = req.user.id;
+        let tag = req.body.tag;
+        tag.userId = userId;
+
+        await Promise.all([
+            Tag.update(tag),
+
+            tag.deletedChildren.length
+                ? Tag.deleteAll(tag.deletedChildren)
+                : Promise.resolve(),
+
+            ...tag.newChildren.map(child =>
+                Tag.create({ ...child, userId: userId })
+            )
+        ]);
+        res.status(204).end();
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ message: err.message });
+    }
+};
+
+exports.delete = async (req, res) => {
+    try {
+        await Tag.deleteAll(req.body.ids);
+        res.status(204).end();
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ message: err.message });
+    }
+};

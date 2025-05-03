@@ -5,7 +5,7 @@ const entityMapService = require('../services/entityMapService');
 const mapInPlace = tag => {
     entityMapService.rename(tag, 'user_id', 'userId');
     entityMapService.rename(tag, 'parent_id', 'parentId');
-}
+};
 
 const tagsToHierarchy = tags => {
     const tagMap = {};
@@ -37,14 +37,15 @@ class Tag {
         return result.rows[0];
     }
 
-    static async update({ id, name, color }) {
+    static async update({ id, name, color, parentId }) {
         const result = await db.query(/* sql */ `
             update tags set
                 name = coalesce($1, name),
-                color = coalesce($2, color)
-            where id = $3
+                color = coalesce($2, color),
+                parent_id = coalesce($3, parent_id)
+            where id = $4
             returning id, name, color, parent_id, user_id`,
-            [name, color, id]
+            [name, color, parentId, id]
         );
         mapInPlace(result.rows[0]);
         return result.rows[0];
@@ -68,7 +69,10 @@ class Tag {
     }
 
     static async findByUser(userId) {
-        const result = await db.query(`select * from tags where user_id = $1`, [userId]);
+        const result = await db.query(/* sql */ `
+            select * from tags where user_id = $1 order by name asc`,
+            [userId]
+        );
         const tags = result.rows;
         tags.forEach(tag => mapInPlace(tag));
         return tags;
@@ -87,12 +91,11 @@ class Tag {
     }
 
     static async deleteAll(tagIds) {
-        await db.query(
-            `delete from tags where id = ` + (Array.isArray(tagIds)
-                ? /* sql */ `any($1::bigint[])`
-                : /* sql */ `$1`
-            ), tagIds
-        );
+        if (!tagIds || (Array.isArray(tagIds) && tagIds.length === 0)) return;
+        const query = Array.isArray(tagIds)
+            ? `delete from tags where id = any($1)`
+            : `delete from tags where id = $1`;
+        await db.query(query, [tagIds]);
     }
 }
 

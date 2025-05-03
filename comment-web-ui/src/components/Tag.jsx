@@ -11,7 +11,7 @@ const Tag = ({ text, color, onClick = null, styles = {} }) => {
             parseInt(color.substring(5, 7), 16),
         ];
         const brightness = (r * 299 + g * 587 + b * 114) / 1000;
-        return brightness > 128 ? 'black' : 'white';
+        return brightness > 160 ? 'black' : 'white';
     }, [color]);
 
     return <Chip

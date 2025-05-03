@@ -90,3 +90,21 @@ select {
 .class-select-cb.class-checked {
     background-color: var(--bg-col) !important;
 }
+
+.tag-edit-nested-tag {
+    border-radius: 8px;
+    padding-inline: 12px;
+    display: flex !important;
+    justify-content: space-between !important;
+    width: 100% !important;
+    box-sizing: border-box !important;
+}
+
+.tag-edit-nested-tag.tag-edit-cancel-delete {
+    cursor: pointer;
+    transition: 0.25s;
+}
+
+.tag-edit-nested-tag.tag-edit-cancel-delete:hover {
+    background-color: hsl(120, 100%, 92%);
+}

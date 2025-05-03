@@ -48,6 +48,8 @@ const sentiments = [
     { desc: 'Негативный', name: 'negative', color: '#EE0000' },
 ];
 
+const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 const HomePage = () => {
 
     const [allTags, setAllTags] = useState([]);
@@ -460,20 +462,76 @@ const HomePage = () => {
                     null,
                     { severity: 'success' }
                 );
+                setEditedTag({ mode: null, name: '' });
             } catch (err) {
                 const error = mapErrorAfterReq(err);
                 notification(
                     error.message,
-                    error.isNetworkError ? 'Сетевая ошибка' : 'Ошибка создания комментария',
-                    {
-                        severity: 'error',
-                        autoHideDuration: 10000
-                    }
+                    error.isNetworkError ? 'Сетевая ошибка' : 'Ошибка создания тега',
+                    { severity: 'error', autoHideDuration: 10000 }
+                );
+            }
+        } else if (editedTag.mode === 'edit') {
+            try {
+                const nc = editedTag.newChildren;
+                const deletedChildren = nc
+                    .filter(t => !uuidRegex.test(t.id) && t.deleted)
+                    .map(t => t.id);
+                const newChildren = nc
+                    .filter(t => uuidRegex.test(t.id) && !t.deleted)
+                    .map(t => ({ ...t, id: undefined, deleted: undefined }));
+                const tagInfo = {
+                    id: editedTag.id,
+                    name: editedTag.name,
+                    color: editedTag.color,
+                    parentId: editedTag.parentId,
+                    newChildren: newChildren,
+                    deletedChildren: deletedChildren
+                };
+                await axios.put(
+                    `${process.env.REACT_APP_BACKEND_URL}/api/tag/update`,
+                    { tag: tagInfo },
+                    { withCredentials: true }
+                );
+                notification(`Тег успешно изменён!`, null, { severity: 'success' });
+                loadTags();
+                setEditedTag({ mode: null, name: '' });
+            } catch (err) {
+                const error = mapErrorAfterReq(err);
+                notification(
+                    error.message,
+                    error.isNetworkError ? 'Сетевая ошибка' : 'Ошибка редактирования тега',
+                    { severity: 'error', autoHideDuration: 10000 }
                 );
             }
         }
-        setEditedTag({ mode: null, name: '' });
-    }, [editedTag, notification]);
+    }, [editedTag, loadTags, notification]);
+
+    const deleteTags = useCallback(async ids => {
+        try {
+            await axios.put(
+                `${process.env.REACT_APP_BACKEND_URL}/api/tag/delete`,
+                { ids: ids },
+                { withCredentials: true }
+            );
+            if (ids.length === 1) {
+                const deleted = allTags.find(tag => tag.id === ids[0]);
+                notification(`Тег${deleted ? (' «' + deleted.name + '»') : ''} успешно удалён!`, null, { severity: 'success' });
+            } else {
+                notification(`Теги (${ids.length} шт.) успешно удалены!`, null, { severity: 'success' });
+            }
+            setAllTags(prev => prev.filter(tag => !ids.includes(tag.id)));
+            setEditedTag({ mode: null, name: '' });
+        } catch (err) {
+            const error = mapErrorAfterReq(err);
+            notification(
+                error.message,
+                error.isNetworkError ? 'Сетевая ошибка' : `Ошибка удаления тег${ids.length === 1 ? 'а' : 'ов'}`,
+                { severity: 'error', autoHideDuration: 10000 }
+            );
+        }
+
+    }, [allTags, setAllTags, setEditedTag, notification]);
 
     const handleTextChange = useCallback((e) => {
         setTextSubstr(e.target.value);
@@ -824,9 +882,11 @@ const HomePage = () => {
         </Dialog>
         <EditTag
             tagTree={tagsAsObject}
+            tagList={allTags}
             tag={editedTag}
             setTag={setEditedTag}
             onTagEdit={onTagEdit}
+            onTagsDelete={deleteTags}
         />
     </>;
 };
