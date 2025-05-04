@@ -346,33 +346,21 @@ const HomePage = () => {
     }, [getCommentsByFilters, handleFilterDialogClose, isFilterApplying, notification]);
 
     const handleAddComment = useCallback(async commentText => {
-        try {
-            const response = await axios.post(
-                `${process.env.REACT_APP_BACKEND_URL}/api/comment/save`,
-                {
-                    comment: {
-                        id: null,
-                        text: commentText.trim(),
-                        sentiment: null,
-                        emotion: null,
-                        analyzed: false
-                    }
-                },
-                { withCredentials: true }
-            );
-            setAllComments(prev => [response.data.comment, ...prev]);
-        } catch (err) {
-            const error = mapErrorAfterReq(err);
-            notification(
-                error.message,
-                error.isNetworkError && 'Сетевая ошибка',
-                {
-                    severity: 'error',
-                    autoHideDuration: 10000
+        const response = await axios.post(
+            `${process.env.REACT_APP_BACKEND_URL}/api/comment/save`,
+            {
+                comment: {
+                    id: null,
+                    text: commentText.trim(),
+                    sentiment: null,
+                    emotion: null,
+                    analyzed: false
                 }
-            );
-        }
-    }, [notification]);
+            },
+            { withCredentials: true }
+        );
+        setAllComments(prev => [response.data.comment, ...prev]);
+    }, []);
 
     const handleAnalyze = useCallback(async ids => {
         if (ids.length === 0) {
@@ -533,7 +521,39 @@ const HomePage = () => {
 
     }, [allTags, setAllTags, setEditedTag, notification]);
 
-    const handleTextChange = useCallback((e) => {
+    const editComments = useCallback(async ({
+        commentIds, text, emotion, sentiment, tagsToAdd, tagsToDelete
+    }) => {
+        try {
+            const response = await axios.post(
+                `${process.env.REACT_APP_BACKEND_URL}/api/comment/updateAll`,
+                {
+                    commentIds: commentIds,
+                    text: text,
+                    emotion: emotion,
+                    sentiment: sentiment,
+                    tagsToAdd: tagsToAdd,
+                    tagsToDelete: tagsToDelete,
+                },
+                { withCredentials: true }
+            );
+            const newCommentsObj = {};
+            const newComments = response.data.comments ?? [];
+            newComments.forEach(comment => { newCommentsObj[comment.id] = comment; });
+            setAllComments(prev => prev.map(comment => newCommentsObj[comment.id] ?? comment));
+        } catch (err) {
+            const error = mapErrorAfterReq(err);
+            notification(
+                error.message,
+                error.isNetworkError
+                    ? 'Сетевая ошибка'
+                    : `Ошибка удаления комментари${commentIds.length === 1 ? 'я' : 'ев'}`,
+                { severity: 'error', autoHideDuration: 10000 }
+            );
+        }
+    }, [notification]);
+
+    const handleTextChange = useCallback(e => {
         setTextSubstr(e.target.value);
     }, []);
 
@@ -623,7 +643,9 @@ const HomePage = () => {
                     <MemoizedCommentList
                         comments={allComments}
                         tags={tagsAsObject}
+                        tagList={allTags}
                         onAddComment={handleAddComment}
+                        onEditComments={editComments}
                         onAnalyze={handleAnalyze}
                         errMapper={mapErrorAfterReq}
                     />

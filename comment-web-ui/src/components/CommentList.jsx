@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useCallback, useState } from 'react';
 import {
     List, ListItem, ListItemIcon, Checkbox, ListItemText, Typography, Divider, Chip, Box,
     Paper, Button, TextField, Dialog, DialogActions, DialogContent, DialogTitle, CircularProgress
@@ -6,11 +6,27 @@ import {
 import { NoteAdd, EditSquare } from '@mui/icons-material';
 import useNotificationApi from '../contexts/NotificationContext';
 import Tag from './Tag';
+import EditComments from './EditComments';
 
-const CommentList = ({ comments, tags, onAddComment, onAnalyze, errMapper }) => {
+const sentimentMap = {
+    positive: { color: '#00BB00', text: 'Позитивный' },
+    neutral: { color: '#AAAAAA', text: 'Нейтральный' },
+    negative: { color: '#EE0000', text: 'Негативный' }
+};
+const emotionMap = {
+    joy: { color: '#00BB00', text: 'Радость' },
+    anger: { color: '#EE0000', text: 'Злость' },
+    fear: { color: '#7F2180', text: 'Страх' },
+    surprise: { color: '#22ACBB', text: 'Удивление' },
+    sadness: { color: '#152BA7', text: 'Грусть' },
+    neutral: { color: '#AAAAAA', text: 'Нет эмоции' },
+};
+
+const CommentList = ({ comments, tags, tagList, onAddComment, onEditComments, onAnalyze, errMapper }) => {
     const [selected, setSelected] = useState([]);
     const [selectAll, setSelectAll] = useState(false);
-    const [isDialogOpen, setIsDialogOpen] = useState(false);
+    const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
+    const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
     const [newCommentText, setNewCommentText] = useState('');
     const [isLoading, setIsLoading] = useState(false);
 
@@ -34,19 +50,13 @@ const CommentList = ({ comments, tags, onAddComment, onAnalyze, errMapper }) => 
         setSelectAll(prev => !prev);
     };
 
-    // Обработчики для добавления комментария
-    const handleAddCommentClick = () => {
-        setIsDialogOpen(true);
-    };
-
     const handleDialogClose = () => {
-        setIsDialogOpen(false);
+        setIsCreateDialogOpen(false);
         setNewCommentText('');
     };
 
-    const handleCommentSubmit = async () => {
+    const handleCommentSubmit = useCallback(async () => {
         if (!newCommentText.trim()) return;
-
         setIsLoading(true);
         try {
             await onAddComment(newCommentText);
@@ -56,16 +66,19 @@ const CommentList = ({ comments, tags, onAddComment, onAnalyze, errMapper }) => 
             const error = errMapper(err);
             notification(
                 error.message,
-                error.isNetworkError ? 'Сетевая ошибка' : 'Ошибка загрузки комментария',
-                {
-                    severity: 'error',
-                    autoHideDuration: 10000
-                }
+                error.isNetworkError ? 'Сетевая ошибка' : 'Ошибка создания комментария',
+                { severity: 'error', autoHideDuration: 10000 }
             );
         } finally {
             setIsLoading(false);
         }
-    };
+    }, [errMapper, newCommentText, notification, onAddComment]);
+
+    // const handleCommentsEdit = useCallback(async ({
+    //     text, emotion, sentiment, tagsToAdd, tagsToDelete
+    // }) => {
+
+    // }, []);
 
     const formatDate = dateStr => {
         try {
@@ -87,19 +100,8 @@ const CommentList = ({ comments, tags, onAddComment, onAnalyze, errMapper }) => 
             />
         }
         // todo общий источник
-        const sentimentData = {
-            positive: { color: '#00BB00', text: 'Позитивный' },
-            neutral: { color: '#AAAAAA', text: 'Нейтральный' },
-            negative: { color: '#EE0000', text: 'Негативный' }
-        }[comment.sentiment];
-        const emotionData = {
-            joy: { color: '#00BB00', text: 'Радость' },
-            anger: { color: '#EE0000', text: 'Злость' },
-            fear: { color: '#7F2180', text: 'Страх' },
-            surprise: { color: '#22ACBB', text: 'Удивление' },
-            sadness: { color: '#152BA7', text: 'Грусть' },
-            neutral: { color: '#AAAAAA', text: 'Нет эмоции' },
-        }[comment.emotion];
+        const sentimentData = sentimentMap[comment.sentiment];
+        const emotionData = emotionMap[comment.emotion];
 
         return <>
             <Chip
@@ -204,14 +206,23 @@ const CommentList = ({ comments, tags, onAddComment, onAnalyze, errMapper }) => 
             </Box>
             <Box sx={{ display: 'flex', gap: 1 }}>
                 <Button
+                    variant="outlined"
+                    color="success"
+                    disabled={!selected.length}
+                    onClick={() => setIsEditDialogOpen(true)}
+                >
+                    Редактировать комментарии
+                </Button>
+                <Button
                     variant="contained"
-                    onClick={handleAddCommentClick}
+                    onClick={() => setIsCreateDialogOpen(true)}
+                    sx={{ mx: 1.5 }}
                 >
                     Добавить комментарий
                 </Button>
                 <Button
-                    variant="outlined"
-                    color='success'
+                    variant="contained"
+                    color="success"
                     onClick={() => onAnalyze(selected)}
                 >
                     Анализировать
@@ -229,7 +240,10 @@ const CommentList = ({ comments, tags, onAddComment, onAnalyze, errMapper }) => 
             {comments.map(commentToElement)}
         </List>
 
-        <Dialog open={isDialogOpen} onClose={handleDialogClose}>
+        <Dialog
+            open={isCreateDialogOpen}
+            onClose={handleDialogClose}
+        >
             <DialogTitle>Новый комментарий</DialogTitle>
             <DialogContent>
                 <TextField
@@ -255,6 +269,14 @@ const CommentList = ({ comments, tags, onAddComment, onAnalyze, errMapper }) => 
                 </Button>
             </DialogActions>
         </Dialog>
+        <EditComments
+            open={isEditDialogOpen}
+            setOpen={setIsEditDialogOpen}
+            onClose={() => setIsEditDialogOpen(false)}
+            amount={selected.length}
+            singleComment={selected.length === 1 ? comments.find(c => c.id === selected[0]) : undefined}
+            tags={tagList}
+        />
     </Paper>;
 };
 
