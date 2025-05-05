@@ -74,11 +74,25 @@ const CommentList = ({ comments, tags, tagList, onAddComment, onEditComments, on
         }
     }, [errMapper, newCommentText, notification, onAddComment]);
 
-    // const handleCommentsEdit = useCallback(async ({
-    //     text, emotion, sentiment, tagsToAdd, tagsToDelete
-    // }) => {
-
-    // }, []);
+    const handleCommentsEdit = useCallback(async updates => {
+        try {
+            await onEditComments({ commentIds: selected, ...updates });
+            const single = (selected.length === 1);
+            notification(
+                `Комментари${single ? 'й' : 'и'} успешно измен${single ? 'ён' : 'ены'}!`,
+                null,
+                { severity: 'success' }
+            );
+            setIsEditDialogOpen(false);
+        } catch (err) {
+            const error = mapErrorAfterReq(err);
+            notification(
+                error.message,
+                error.isNetworkError ? 'Сетевая ошибка' : 'Ошибка редактирования комментариев',
+                { severity: 'error', autoHideDuration: 10000 }
+            );
+        }
+    }, [onEditComments, selected, setIsEditDialogOpen, notification]);
 
     const formatDate = dateStr => {
         try {
@@ -102,7 +116,7 @@ const CommentList = ({ comments, tags, tagList, onAddComment, onEditComments, on
         // todo общий источник
         const sentimentData = sentimentMap[comment.sentiment];
         const emotionData = emotionMap[comment.emotion];
-
+        // todo Chip -> Tag
         return <>
             <Chip
                 label={sentimentData.text}
@@ -271,13 +285,53 @@ const CommentList = ({ comments, tags, tagList, onAddComment, onEditComments, on
         </Dialog>
         <EditComments
             open={isEditDialogOpen}
-            setOpen={setIsEditDialogOpen}
             onClose={() => setIsEditDialogOpen(false)}
+            onEdit={handleCommentsEdit}
             amount={selected.length}
             singleComment={selected.length === 1 ? comments.find(c => c.id === selected[0]) : undefined}
             tags={tagList}
         />
     </Paper>;
 };
+
+function mapErrorAfterReq(err) {
+    const response = err.response;
+    const message = err.message;
+
+    if (!(response || err.request)) {
+        return {
+            message: message || 'Неизвестная ошибка',
+            type: 'setup_error'
+        };
+    }
+    if (response) {
+        return {
+            message: response.data?.message || `Неизвестная ошибка сервиса! Статус: ${response.status}.`,
+            status: response.status,
+            data: response.data,
+            type: 'server_error'
+        };
+    }
+    if (err.code === 'ECONNREFUSED') {
+        return {
+            message: 'Ошибка соединения — сервис недоступен! Попробуйте позже или перезагрузите страницу.',
+            code: err.code,
+            isNetworkError: true,
+            type: 'connection_refused'
+        };
+    } else if (message && message.includes('Network Error')) {
+        return {
+            message: 'Ошибка сети! Пожалуйста, проверьте интернет-соединение и перезагрузите страницу.',
+            isNetworkError: true,
+            type: 'network_error'
+        };
+    }
+    return {
+        message: message || 'Неизвестная ошибка запроса',
+        code: err.code,
+        isNetworkError: true,
+        type: 'request_error'
+    };
+}
 
 export default CommentList;

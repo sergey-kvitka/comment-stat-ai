@@ -29,9 +29,6 @@ const localeText = ruRU.components.MuiLocalizationProvider.defaultProps.localeTe
 localeText.okButtonLabel = 'ОК';
 localeText.cancelButtonLabel = 'Отмена';
 
-const MemoizedTagTree = React.memo(TagTree);
-const MemoizedCommentList = React.memo(CommentList);
-
 // todo emotion and sentiment lists being loaded from server
 const emotions = [
     { desc: 'Радость', name: 'joy', color: '#00BB00' },
@@ -50,14 +47,17 @@ const sentiments = [
 
 const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
+const MemoizedTagTree = React.memo(TagTree);
+const MemoizedCommentList = React.memo(CommentList);
+
+
+// !! HomePage component
 const HomePage = () => {
 
     const [allTags, setAllTags] = useState([]);
     const [allComments, setAllComments] = useState([]);
 
-    // todo emotion and sentiment lists being loaded from server
-
-    // comment filters
+    // * comment filters
     const [
         [includedTags, setIncludedTags],
         [excludedTags, setExcludedTags],
@@ -94,6 +94,7 @@ const HomePage = () => {
     }, []);
 
     const renderTag = useCallback((tag, setTagList) => <Tag
+        key={tag.id}
         text={tag.name}
         color={tag.color}
         onClick={() => removeTagFromList(tag.id, setTagList)}
@@ -422,7 +423,7 @@ const HomePage = () => {
         if (!tagList.some(t => t.id === tag.id)) {
             setTagList(prev => [...prev, tag]);
         }
-    }, [excludedTags, includeTagsSwitch, includedTags, setIncludedTags, setExcludedTags]);
+    }, [includeTagsSwitch, includedTags, excludedTags, setIncludedTags, setExcludedTags]);
 
     const handleTagEdit = useCallback(tag => {
         setEditedTag({ ...tag, mode: 'edit' });
@@ -521,37 +522,17 @@ const HomePage = () => {
 
     }, [allTags, setAllTags, setEditedTag, notification]);
 
-    const editComments = useCallback(async ({
-        commentIds, text, emotion, sentiment, tagsToAdd, tagsToDelete
-    }) => {
-        try {
-            const response = await axios.post(
-                `${process.env.REACT_APP_BACKEND_URL}/api/comment/updateAll`,
-                {
-                    commentIds: commentIds,
-                    text: text,
-                    emotion: emotion,
-                    sentiment: sentiment,
-                    tagsToAdd: tagsToAdd,
-                    tagsToDelete: tagsToDelete,
-                },
-                { withCredentials: true }
-            );
-            const newCommentsObj = {};
-            const newComments = response.data.comments ?? [];
-            newComments.forEach(comment => { newCommentsObj[comment.id] = comment; });
-            setAllComments(prev => prev.map(comment => newCommentsObj[comment.id] ?? comment));
-        } catch (err) {
-            const error = mapErrorAfterReq(err);
-            notification(
-                error.message,
-                error.isNetworkError
-                    ? 'Сетевая ошибка'
-                    : `Ошибка удаления комментари${commentIds.length === 1 ? 'я' : 'ев'}`,
-                { severity: 'error', autoHideDuration: 10000 }
-            );
-        }
-    }, [notification]);
+    const editComments = useCallback(async updates => {
+        const response = await axios.post(
+            `${process.env.REACT_APP_BACKEND_URL}/api/comment/updateAll`,
+            updates,
+            { withCredentials: true }
+        );
+        const newCommentsObj = {};
+        const newComments = response.data.comments ?? [];
+        newComments.forEach(comment => { newCommentsObj[comment.id] = comment; });
+        setAllComments(prev => prev.map(comment => newCommentsObj[comment.id] ?? comment));
+    }, []);
 
     const handleTextChange = useCallback(e => {
         setTextSubstr(e.target.value);
@@ -951,6 +932,6 @@ function mapErrorAfterReq(err) {
         isNetworkError: true,
         type: 'request_error'
     };
-};
+}
 
 export default HomePage;

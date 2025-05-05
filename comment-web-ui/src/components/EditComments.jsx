@@ -1,5 +1,9 @@
-import { Button, Dialog, DialogActions, DialogContent, DialogTitle, FormControl, InputLabel, MenuItem, Select, Stack, TextField, Typography } from "@mui/material";
-import React, { useEffect, useState } from "react";
+import {
+    Button, Dialog, DialogActions, DialogContent, DialogTitle,
+    FormControl, InputLabel, MenuItem, Select, Stack, TextField,
+    Typography, RadioGroup, FormControlLabel, Radio
+} from "@mui/material";
+import React, { useState, useEffect, useCallback } from "react";
 import TagTree from "./TagTree";
 import Tag from "./Tag";
 
@@ -21,7 +25,7 @@ const sentiments = [
     { desc: 'Негативный', name: 'negative', color: '#EE0000' },
 ];
 
-const EditComments = ({ open, setOpen, onClose, onEdit, amount, singleComment, tags }) => {
+const EditComments = ({ open, onClose, onEdit, amount, singleComment, tags }) => {
 
     const [newText, setNewText] = useState('');
     const [newEmotion, setNewEmotion] = useState('null');
@@ -29,12 +33,50 @@ const EditComments = ({ open, setOpen, onClose, onEdit, amount, singleComment, t
     const [newTags, setNewTags] = useState([]);
     const [tagsToDelete, setTagsToDelete] = useState([]);
 
+    const [addTagsSwitch, setAddTagsSwitch] = useState(true);
+
     useEffect(() => {
         if (!singleComment) return;
         setNewText(singleComment.text);
         setNewEmotion(singleComment.emotion);
         setNewSentiment(singleComment.sentiment);
     }, [singleComment]);
+
+    const removeTagFromList = useCallback((id, setNewList) => {
+        setNewList(prev => [...prev.filter(tagId => tagId !== id)]);
+    }, []);
+
+    const renderTag = useCallback((tag, setTagList) => <Tag
+        key={tag.id}
+        text={tag.name}
+        color={tag.color}
+        onClick={() => removeTagFromList(tag.id, setTagList)}
+        styles={{
+            marginBottom: '5px !important',
+            '&:hover': { bgcolor: tag.color, opacity: 0.8 }
+        }}
+    />, [removeTagFromList]);
+
+    const handleTagClick = useCallback(tag => {
+        const id = tag.id;
+        const [tagList, setTagList] = (
+            addTagsSwitch ? [newTags, setNewTags] : [tagsToDelete, setTagsToDelete]
+        );
+        if (!tagList.some(t => t === id)) {
+            setTagList(prev => [...prev, id]);
+        }
+    }, [addTagsSwitch, newTags, setNewTags, tagsToDelete, setTagsToDelete]);
+
+    const editComments = useCallback(() => {
+        const updates = {
+            text: singleComment && newText,
+            emotion: newEmotion === 'null' ? null : newEmotion,
+            sentiment: newSentiment === 'null' ? null : newSentiment,
+            tagsToAdd: newTags,
+            tagsToDelete: tagsToDelete
+        };
+        onEdit(updates);
+    }, [singleComment, onEdit, newText, newEmotion, newSentiment, newTags, tagsToDelete]);
 
     return <Dialog
         open={open}
@@ -57,7 +99,7 @@ const EditComments = ({ open, setOpen, onClose, onEdit, amount, singleComment, t
             <Stack direction="row" gap={2.5}>
                 <TagTree
                     tags={tags}
-                    onTagClick={() => { }}
+                    onTagClick={handleTagClick}
                     onTagEdit={null}
                     maxHeight={'50vh'}
                     createBtn={<React.Fragment key={'tag-tree-empty-btn'} />}
@@ -116,6 +158,31 @@ const EditComments = ({ open, setOpen, onClose, onEdit, amount, singleComment, t
                             </Select>
                         </FormControl>
                     </Stack>
+                    <RadioGroup
+                        name="tag-include-exclude"
+                        value={addTagsSwitch}
+                        onChange={e => setAddTagsSwitch(e.target.value === 'true')}
+                    >
+                        {[
+                            { formValue: true, formLabel: 'Добавить:', tagList: newTags, setTagList: setNewTags },
+                            { formValue: false, formLabel: 'Удалить:', tagList: tagsToDelete, setTagList: setTagsToDelete },
+                        ].map(row => (
+                            <Stack
+                                direction="row"
+                                sx={{
+                                    width: '50vw',
+                                    display: 'flex',
+                                    alignItems: 'center'
+                                }}
+                                key={row.formLabel}
+                            >
+                                <FormControlLabel value={row.formValue} label={row.formLabel} control={<Radio />} />
+                                <Stack direction="row" flexWrap="wrap" spacing={0.5}>
+                                    {row.tagList.map(tag => renderTag(tag, row.setTagList))}
+                                </Stack>
+                            </Stack>
+                        ))}
+                    </RadioGroup>
                 </Stack>
             </Stack>
         </DialogContent>
@@ -128,6 +195,7 @@ const EditComments = ({ open, setOpen, onClose, onEdit, amount, singleComment, t
             <Button
                 color="success"
                 variant="contained"
+                onClick={editComments}
             >Сохранить изменения</Button>
         </DialogActions>
     </Dialog>;
