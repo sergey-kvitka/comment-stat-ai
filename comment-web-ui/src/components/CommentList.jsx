@@ -27,7 +27,7 @@ const CommentList = ({
     tags,
     tagList,
     onAddComment,
-    onEditComments, 
+    onEditComments,
     onDeleteComments,
     onAnalyze,
     errMapper
@@ -39,7 +39,7 @@ const CommentList = ({
     const [newCommentText, setNewCommentText] = useState('');
     const [isLoading, setIsLoading] = useState(false);
 
-    const { notification } = useNotificationApi();
+    const { defaultSuccessNotification, defaultErrorNotification } = useNotificationApi();
 
     // Обработчики для выбора комментариев
     const handleToggle = id => {
@@ -69,52 +69,35 @@ const CommentList = ({
         setIsLoading(true);
         try {
             await onAddComment(newCommentText);
-            notification('Комментарий успешно создан!', null, { severity: 'success' });
+            defaultSuccessNotification('Комментарий успешно создан!');
             handleDialogClose();
         } catch (err) {
-            const error = errMapper(err);
-            notification(
-                error.message,
-                error.isNetworkError ? 'Сетевая ошибка' : 'Ошибка создания комментария',
-                { severity: 'error', autoHideDuration: 10000 }
-            );
+            defaultErrorNotification(errMapper(err), 'Ошибка создания комментария');
         } finally {
             setIsLoading(false);
         }
-    }, [errMapper, newCommentText, notification, onAddComment]);
+    }, [onAddComment, errMapper, newCommentText, defaultSuccessNotification, defaultErrorNotification]);
 
     const handleCommentsEdit = useCallback(async updates => {
         try {
             await onEditComments({ commentIds: selected, ...updates });
             const single = (selected.length === 1);
-            notification(
-                `Комментари${single ? 'й' : 'и'} успешно измен${single ? 'ён' : 'ены'}!`,
-                null,
-                { severity: 'success' }
-            );
+            defaultSuccessNotification(`Комментари${single ? 'й' : 'и'} успешно измен${single ? 'ён' : 'ены'}!`);
             setIsEditDialogOpen(false);
         } catch (err) {
-            const error = mapErrorAfterReq(err);
-            notification(
-                error.message,
-                error.isNetworkError ? 'Сетевая ошибка' : 'Ошибка редактирования комментариев',
-                { severity: 'error', autoHideDuration: 10000 }
-            );
+            defaultErrorNotification(mapErrorAfterReq(err), 'Ошибка редактирования комментариев');
         }
-    }, [onEditComments, selected, setIsEditDialogOpen, notification]);
+    }, [onEditComments, selected, setIsEditDialogOpen, defaultSuccessNotification, defaultErrorNotification]);
 
     const handleCommentsDelete = useCallback(async () => {
         try {
             await onDeleteComments(selected);
+            const single = (selected.length === 1);
+            defaultSuccessNotification(`Комментари${single ? 'й' : 'и'} успешно удал${single ? 'ён' : 'ены'}!`);
         } catch (err) {
-            const error = mapErrorAfterReq(err);
-            notification(
-                error.message,
-                error.isNetworkError ? 'Сетевая ошибка' : 'Ошибка удаления комментариев',
-                { severity: 'error', autoHideDuration: 10000 }
-            );
+            defaultErrorNotification(mapErrorAfterReq(err), 'Ошибка удаления комментариев');
         }
-    }, [onDeleteComments, selected, notification]);
+    }, [onDeleteComments, selected, defaultSuccessNotification, defaultErrorNotification]);
 
     const formatDate = dateStr => {
         try {

@@ -87,7 +87,7 @@ const HomePage = () => {
     const [editedTag, setEditedTag] = useState({ mode: null, name: '' });
 
     const navigate = useNavigate();
-    const { notification } = useNotificationApi();
+    const { notification, defaultSuccessNotification, defaultErrorNotification } = useNotificationApi();
 
     const removeTagFromList = useCallback((id, setNewList) => {
         setNewList(prev => [...prev.filter(tag => tag.id !== id)]);
@@ -112,17 +112,9 @@ const HomePage = () => {
             );
             setAllTags(response.data.tags);
         } catch (err) {
-            const error = mapErrorAfterReq(err);
-            notification(
-                error.message,
-                error.isNetworkError ? 'Сетевая ошибка' : 'Ошибка загрузки тегов',
-                {
-                    severity: 'error',
-                    autoHideDuration: 10000
-                }
-            );
+            defaultErrorNotification(mapErrorAfterReq(err), 'Ошибка загрузки тегов');
         }
-    }, [notification]);
+    }, [defaultErrorNotification]);
 
     const loadComments = useCallback(async () => {
         try {
@@ -132,17 +124,9 @@ const HomePage = () => {
             );
             setAllComments(response.data?.comments ?? []);
         } catch (err) {
-            const error = mapErrorAfterReq(err);
-            notification(
-                error.message,
-                error.isNetworkError ? 'Сетевая ошибка' : 'Ошибка загрузки комментариев',
-                {
-                    severity: 'error',
-                    autoHideDuration: 10000
-                }
-            );
+            defaultErrorNotification(mapErrorAfterReq(err), 'Ошибка загрузки комментариев');
         }
-    }, [notification]);
+    }, [defaultErrorNotification]);
 
     useEffect(() => {
         loadComments();
@@ -183,18 +167,14 @@ const HomePage = () => {
             notification(
                 'Фильтрация: неверный формат ответа от сервера!',
                 'Внутренняя ошибка',
-                {
-                    severity: 'error',
-                    autoHideDuration: 10000
-                }
+                { severity: 'error', autoHideDuration: 10000 }
             );
             console.error('Неверный формат ответа сервера (/api/comment/getByFilters)');
             return null;
         }
         return response.data.comments;
     }, [
-        notification,
-        textSubstr, analyzed, createdFrom, createdTo, modifiedFrom, modifiedTo,
+        notification, textSubstr, analyzed, createdFrom, createdTo, modifiedFrom, modifiedTo,
         excludedEmotions, excludedSentiments, excludedTags, includedEmotions, includedSentiments, includedTags
     ]);
 
@@ -327,24 +307,19 @@ const HomePage = () => {
                     null, { severity: 'warning' }
                 );
             } else {
-                notification('Фильтры применены!', null, { severity: 'success' });
+                defaultSuccessNotification('Фильтры применены!');
             }
             handleFilterDialogClose();
         } catch (err) {
             // todo: handle 401 everywhere
-            const error = mapErrorAfterReq(err);
-            notification(
-                error.message,
-                error.isNetworkError ? 'Сетевая ошибка' : 'Ошибка загрузки тегов',
-                {
-                    severity: 'error',
-                    autoHideDuration: 10000
-                }
-            );
+            defaultErrorNotification(mapErrorAfterReq(err), 'Ошибка загрузки комментариев');
         } finally {
             setIsFilterApplying(false);
         }
-    }, [getCommentsByFilters, handleFilterDialogClose, isFilterApplying, notification]);
+    }, [
+        getCommentsByFilters, handleFilterDialogClose, isFilterApplying,
+        notification, defaultSuccessNotification, defaultErrorNotification
+    ]);
 
     const handleAddComment = useCallback(async commentText => {
         const response = await axios.post(
@@ -386,23 +361,11 @@ const HomePage = () => {
                 return newComments;
             });
             const amount = Object.keys(analyzedComments).length ?? 0;
-            notification(
-                `Комментарии проанализированы успешно! ${amount ? (' Количество: ' + amount) : ''}`,
-                null,
-                { severity: 'success' }
-            );
+            defaultSuccessNotification(`Комментарии проанализированы успешно! ${amount ? (' Количество: ' + amount) : ''}`);
         } catch (err) {
-            const error = mapErrorAfterReq(err);
-            notification(
-                error.message,
-                error.isNetworkError ? 'Сетевая ошибка' : 'Ошибка анализа комментариев',
-                {
-                    severity: 'error',
-                    autoHideDuration: 10000
-                }
-            );
+            defaultErrorNotification(mapErrorAfterReq(err), 'Ошибка анализа комментариев');
         }
-    }, [notification]);
+    }, [notification, defaultSuccessNotification, defaultErrorNotification]);
 
     const tagsAsObject = useMemo(() => {
         const tagsObj = {};
@@ -446,19 +409,10 @@ const HomePage = () => {
                 );
                 const newTag = response.data.tag;
                 setAllTags(prev => [...prev, newTag]);
-                notification(
-                    `Тег "${newTag.name}" успешно создан!`,
-                    null,
-                    { severity: 'success' }
-                );
+                defaultSuccessNotification(`Тег "${newTag.name}" успешно создан!`);
                 setEditedTag({ mode: null, name: '' });
             } catch (err) {
-                const error = mapErrorAfterReq(err);
-                notification(
-                    error.message,
-                    error.isNetworkError ? 'Сетевая ошибка' : 'Ошибка создания тега',
-                    { severity: 'error', autoHideDuration: 10000 }
-                );
+                defaultErrorNotification(mapErrorAfterReq(err), 'Ошибка создания тега');
             }
         } else if (editedTag.mode === 'edit') {
             try {
@@ -482,19 +436,14 @@ const HomePage = () => {
                     { tag: tagInfo },
                     { withCredentials: true }
                 );
-                notification(`Тег успешно изменён!`, null, { severity: 'success' });
+                defaultSuccessNotification(`Тег успешно изменён!`);
                 loadTags();
                 setEditedTag({ mode: null, name: '' });
             } catch (err) {
-                const error = mapErrorAfterReq(err);
-                notification(
-                    error.message,
-                    error.isNetworkError ? 'Сетевая ошибка' : 'Ошибка редактирования тега',
-                    { severity: 'error', autoHideDuration: 10000 }
-                );
+                defaultErrorNotification(mapErrorAfterReq(err), 'Ошибка редактирования тега');
             }
         }
-    }, [editedTag, loadTags, notification]);
+    }, [editedTag, loadTags, defaultSuccessNotification, defaultErrorNotification]);
 
     const deleteTags = useCallback(async ids => {
         try {
@@ -505,22 +454,16 @@ const HomePage = () => {
             );
             if (ids.length === 1) {
                 const deleted = allTags.find(tag => tag.id === ids[0]);
-                notification(`Тег${deleted ? (' «' + deleted.name + '»') : ''} успешно удалён!`, null, { severity: 'success' });
+                defaultSuccessNotification(`Тег${deleted ? (' «' + deleted.name + '»') : ''} успешно удалён!`);
             } else {
-                notification(`Теги (${ids.length} шт.) успешно удалены!`, null, { severity: 'success' });
+                defaultSuccessNotification(`Теги (${ids.length} шт.) успешно удалены!`);
             }
             setAllTags(prev => prev.filter(tag => !ids.includes(tag.id)));
             setEditedTag({ mode: null, name: '' });
         } catch (err) {
-            const error = mapErrorAfterReq(err);
-            notification(
-                error.message,
-                error.isNetworkError ? 'Сетевая ошибка' : `Ошибка удаления тег${ids.length === 1 ? 'а' : 'ов'}`,
-                { severity: 'error', autoHideDuration: 10000 }
-            );
+            defaultErrorNotification(mapErrorAfterReq(err), `Ошибка удаления тег${ids.length === 1 ? 'а' : 'ов'}`);
         }
-
-    }, [allTags, setAllTags, setEditedTag, notification]);
+    }, [allTags, setAllTags, setEditedTag, defaultSuccessNotification, defaultErrorNotification]);
 
     const editComments = useCallback(async updates => {
         const response = await axios.post(

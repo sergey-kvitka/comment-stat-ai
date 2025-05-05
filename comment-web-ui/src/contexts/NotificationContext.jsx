@@ -9,24 +9,37 @@ const NotificationStateContext = createContext();
 export const NotificationProvider = memo(({ children }) => {
     const [notifications, setNotifications] = useState([]);
 
-    // Мемоизированная функция показа уведомлений
-    const showNotification = useCallback((message, title, options = {}) => {
+    const show = useCallback((message, title, options = {}) => {
         const id = Date.now();
         setNotifications(prev => [...prev, { id, message, title, ...options }]);
         return id;
     }, []);
 
-    // Мемоизированная функция закрытия уведомлений
-    const closeNotification = useCallback(id => {
-        setNotifications(prev => prev.filter(n => n.id !== id));
-    }, []);
+    const defaultSuccess = useCallback(message => {
+        return show(message, null, { severity: 'success' });
+    }, [show]);
 
-    // Мемоизированное API уведомлений
+    const defaultError = useCallback((error, title) => {
+        return show(
+            error.message,
+            error.isNetworkError ? 'Сетевая ошибка' : title,
+            { severity: 'error', autoHideDuration: 10000 }
+        );
+    }, [show]);
+
+    const close = useCallback(id => setNotifications(prev => prev.filter(n => n.id !== id)), []);
+
     const api = useMemo(() => ({
-        notification: showNotification,
-        show: showNotification,
-        close: closeNotification
-    }), [showNotification, closeNotification]);
+        notification: show,
+        closeNotification: close,
+        defaultSuccessNotification: defaultSuccess,
+        defaultErrorNotification: defaultError,
+    }), [
+        show,
+        close,
+        defaultSuccess,
+        defaultError,
+    ]);
 
     return (
         <NotificationApiContext.Provider value={api}>
@@ -37,7 +50,7 @@ export const NotificationProvider = memo(({ children }) => {
                         key={id}
                         open={true}
                         autoHideDuration={4000}
-                        onClose={() => closeNotification(id)}
+                        onClose={() => close(id)}
                         anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
                         sx={{
                             transform: 'scale(1.25)',
@@ -47,7 +60,7 @@ export const NotificationProvider = memo(({ children }) => {
                     >
                         <Alert
                             severity={severity}
-                            onClose={() => closeNotification(id)}
+                            onClose={() => close(id)}
                             sx={{ minWidth: '300px' }}
                         >
                             {title && <AlertTitle>{title}</AlertTitle>}
