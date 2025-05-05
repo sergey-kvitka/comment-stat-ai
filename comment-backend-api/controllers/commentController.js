@@ -50,21 +50,21 @@ exports.updateAll = async (req, res) => {
         }
         const updates = req.body;
         if (comments.length !== 1) updates.text = undefined;
-        comments.map(comment => {
+        comments.forEach(comment => {
             ["text", "emotion", "sentiment"].forEach(column => {
-                if (updates[column]) comment[column] = updates[column];
+                if (updates[column] !== undefined) comment[column] = updates[column];
             });
             const resultTags = new Set(comment.tagIds);
             if (updates.tagsToAdd?.length) {
-                updates.tagsToAdd.forEach(tag => resultTags.add(tag));
+                updates.tagsToAdd.forEach(tag => resultTags.add(String(tag)));
             }
             if (updates.tagsToDelete?.length) {
-                updates.tagsToDelete.forEach(tag => resultTags.delete(tag));
+                updates.tagsToDelete.forEach(tag => resultTags.delete(String(tag)));
             }
             comment.tagIds = Array.from(resultTags);
             // comment.analyzed can't be updated here
         });
-        comments = await Comment.saveAll(commentIds);
+        comments = await Comment.saveAll(comments);
         res.status(200).json({ comments: comments });
     } catch (err) {
         console.error(err);

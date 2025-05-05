@@ -8,6 +8,7 @@ const mapInPlace = comment => {
     entityMapService.rename(comment, 'tag_ids', 'tagIds');
     entityMapService.rename(comment, 'created_at', 'createdStr');
     entityMapService.rename(comment, 'modified_at', 'modifiedStr');
+    if (comment.tagIds) comment.tagIds = comment.tagIds.map(id => String(id));
 }
 
 const commentSelect = /* sql */ `
@@ -68,8 +69,12 @@ class Comment {
         // removing tags that are not presented in parameter
         await db.query(/* sql */ `
             delete from comment_tag_link
-            where comment_id = $1 and tag_id != any($2::bigint[])
-            `, [comment.id, tagIds]
+            where comment_id = $1 and (
+                case when array_length($2::bigint[], 1) is null
+                    then true
+                    else tag_id != all($2::bigint[])
+                end
+            )`, [comment.id, tagIds]
         );
         // saving tags to DB (with avoiding duplication)
         const updatedComment = Comment.addTags(comment, tagIds);

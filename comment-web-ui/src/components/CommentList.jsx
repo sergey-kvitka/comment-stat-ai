@@ -1,19 +1,21 @@
 import React, { useCallback, useState } from 'react';
 import {
-    List, ListItem, ListItemIcon, Checkbox, ListItemText, Typography, Divider, Chip, Box,
-    Paper, Button, TextField, Dialog, DialogActions, DialogContent, DialogTitle, CircularProgress
+    List, ListItem, ListItemIcon, Checkbox, ListItemText, Typography, Divider, Box, Paper,
+    Button, TextField, Dialog, DialogActions, DialogContent, DialogTitle, CircularProgress
 } from '@mui/material';
-import { NoteAdd, EditSquare, Delete } from '@mui/icons-material';
+import { NoteAdd, EditSquare, Delete, ManageSearch, Add, Edit } from '@mui/icons-material';
 import useNotificationApi from '../contexts/NotificationContext';
 import Tag from './Tag';
 import EditComments from './EditComments';
 
 const sentimentMap = {
+    "null": { color: '#888888', text: 'Не проанализирован' },
     positive: { color: '#00BB00', text: 'Позитивный' },
     neutral: { color: '#AAAAAA', text: 'Нейтральный' },
     negative: { color: '#EE0000', text: 'Негативный' }
 };
 const emotionMap = {
+    "null": { color: '#888888', text: 'Не проанализирован' },
     joy: { color: '#00BB00', text: 'Радость' },
     anger: { color: '#EE0000', text: 'Злость' },
     fear: { color: '#7F2180', text: 'Страх' },
@@ -78,12 +80,13 @@ const CommentList = ({
         }
     }, [onAddComment, errMapper, newCommentText, defaultSuccessNotification, defaultErrorNotification]);
 
-    const handleCommentsEdit = useCallback(async updates => {
+    const handleCommentsEdit = useCallback(async (updates, callback) => {
         try {
             await onEditComments({ commentIds: selected, ...updates });
             const single = (selected.length === 1);
             defaultSuccessNotification(`Комментари${single ? 'й' : 'и'} успешно измен${single ? 'ён' : 'ены'}!`);
             setIsEditDialogOpen(false);
+            callback();
         } catch (err) {
             defaultErrorNotification(mapErrorAfterReq(err), 'Ошибка редактирования комментариев');
         }
@@ -92,6 +95,7 @@ const CommentList = ({
     const handleCommentsDelete = useCallback(async () => {
         try {
             await onDeleteComments(selected);
+            setSelected([]);
             const single = (selected.length === 1);
             defaultSuccessNotification(`Комментари${single ? 'й' : 'и'} успешно удал${single ? 'ён' : 'ены'}!`);
         } catch (err) {
@@ -108,31 +112,20 @@ const CommentList = ({
     };
 
     const commentClasses = comment => {
-        if (!comment.sentiment || !comment.emotion) {
-            return <Chip
-                sx={{
-                    background: '#888888',
-                    color: 'white'
-                }}
-                label={'Не проанализирован'}
-                size="small"
-            />
-        }
         // todo общий источник
-        const sentimentData = sentimentMap[comment.sentiment];
-        const emotionData = emotionMap[comment.emotion];
-        // todo Chip -> Tag
+        const sentimentData = sentimentMap[comment.sentiment ?? "null"];
+        const emotionData = emotionMap[comment.emotion ?? "null"];
         return <>
-            <Chip
-                label={sentimentData.text}
-                sx={{ background: sentimentData.color, color: 'white' }}
-                size="small"
+            <Tag
+                text={sentimentData.text}
+                color={sentimentData.color}
+                styles={{ color: 'white' }}
             />
-            <Chip
-                label={emotionData.text}
-                sx={{ background: emotionData.color, color: 'white' }}
-                size="small"
-            />
+            {(comment.sentiment || comment.emotion) && <Tag
+                text={emotionData.text}
+                color={emotionData.color}
+                styles={{ color: 'white' }}
+            />}
         </>;
     };
 
@@ -140,7 +133,12 @@ const CommentList = ({
         return comment.tagIds?.map(tagId => {
             const tag = tags[tagId];
             if (!tag) return null;
-            return <Tag key={tagId} text={tag.name} color={tag.color} styles={{ mt: 1, mr: '5px' }} />;
+            return <Tag
+                key={tagId}
+                text={tag.name}
+                color={tag.color}
+                styles={{ my: 0.2, mr: '5px' }}
+            />;
         });
     };
 
@@ -223,27 +221,29 @@ const CommentList = ({
                     Комментарии ({comments.length})
                 </Typography>
             </Box>
-            <Box sx={{ display: 'flex', gap: 1 }}>
+            <Box sx={{ display: 'flex', gap: 2.5 }}>
                 <Button
                     variant="outlined"
                     color="error"
                     disabled={!selected.length}
                     onClick={handleCommentsDelete}
                     startIcon={<Delete />}
-                    sx={{ mr: 2 }}
-                />
+                >
+                    Удалить
+                </Button>
                 <Button
                     variant="outlined"
                     color="success"
                     disabled={!selected.length}
                     onClick={() => setIsEditDialogOpen(true)}
+                    startIcon={<Edit />}
                 >
                     Редактировать комментарии
                 </Button>
                 <Button
                     variant="contained"
                     onClick={() => setIsCreateDialogOpen(true)}
-                    sx={{ mx: 1.5 }}
+                    startIcon={<Add />}
                 >
                     Добавить комментарий
                 </Button>
@@ -251,6 +251,7 @@ const CommentList = ({
                     variant="contained"
                     color="success"
                     onClick={() => onAnalyze(selected)}
+                    startIcon={<ManageSearch />}
                 >
                     Анализировать
                 </Button>

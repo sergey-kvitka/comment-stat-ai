@@ -14,7 +14,7 @@ import {
     Stack, RadioGroup, FormControlLabel, Radio, Chip, TextField, FormControl, FormLabel,
     Typography, Paper, InputLabel, MenuItem, Select, Checkbox,
 } from '@mui/material';
-import { Add, Check as CheckIcon, Close as CloseIcon } from '@mui/icons-material';
+import { Add, Check as CheckIcon, Close as CloseIcon, FilterAlt, Search } from '@mui/icons-material';
 import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
 import { AdapterDayjs } from '@mui/x-date-pickers/AdapterDayjs';
 import { DateTimePicker } from '@mui/x-date-pickers/DateTimePicker';
@@ -569,6 +569,7 @@ const HomePage = () => {
                         <Button
                             variant="outlined"
                             onClick={() => setIsFilterDialogOpen(true)}
+                            startIcon={<FilterAlt />}
                         >
                             Фильтры
                         </Button>
@@ -827,9 +828,10 @@ const HomePage = () => {
                         Отмена
                     </Button>
                     <Button
-                        onClick={handleFilterApplying}
                         variant="contained"
                         disabled={isFilterApplying}
+                        onClick={handleFilterApplying}
+                        startIcon={<Search />}
                     >
                         {isFilterApplying ? <CircularProgress size={24} /> : 'Применить'}
                     </Button>

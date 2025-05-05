@@ -1,7 +1,7 @@
 import {
     Button, Dialog, DialogActions, DialogContent, DialogTitle,
     FormControl, InputLabel, MenuItem, Select, Stack, TextField,
-    Typography, RadioGroup, FormControlLabel, Radio
+    Typography, RadioGroup, FormControlLabel, Radio, Checkbox
 } from "@mui/material";
 import React, { useState, useEffect, useCallback } from "react";
 import TagTree from "./TagTree";
@@ -27,23 +27,34 @@ const sentiments = [
 
 const EditComments = ({ open, onClose, onEdit, amount, singleComment, tags }) => {
 
-    const [newText, setNewText] = useState('');
-    const [newEmotion, setNewEmotion] = useState('null');
-    const [newSentiment, setNewSentiment] = useState('null');
+    const [newText, setNewText] = useState("");
+    const [newEmotion, setNewEmotion] = useState("null");
+    const [newSentiment, setNewSentiment] = useState("null");
     const [newTags, setNewTags] = useState([]);
     const [tagsToDelete, setTagsToDelete] = useState([]);
+
+    const [applyEmotion, setApplyEmotion] = useState(true);
+    const [applySentiment, setApplySentiment] = useState(true);
 
     const [addTagsSwitch, setAddTagsSwitch] = useState(true);
 
     useEffect(() => {
-        if (!singleComment) return;
-        setNewText(singleComment.text);
-        setNewEmotion(singleComment.emotion);
-        setNewSentiment(singleComment.sentiment);
+        if (singleComment) {
+            setNewText(singleComment.text);
+            setNewEmotion(singleComment.emotion);
+            setNewSentiment(singleComment.sentiment);
+            setApplyEmotion(true);
+            setApplySentiment(true);
+        } else {
+            setNewEmotion("null");
+            setNewSentiment("null");
+            setApplyEmotion(false);
+            setApplySentiment(false);
+        }
     }, [singleComment]);
 
     const removeTagFromList = useCallback((id, setNewList) => {
-        setNewList(prev => [...prev.filter(tagId => tagId !== id)]);
+        setNewList(prev => [...prev.filter(t => t.id !== id)]);
     }, []);
 
     const renderTag = useCallback((tag, setTagList) => <Tag
@@ -52,30 +63,38 @@ const EditComments = ({ open, onClose, onEdit, amount, singleComment, tags }) =>
         color={tag.color}
         onClick={() => removeTagFromList(tag.id, setTagList)}
         styles={{
-            marginBottom: '5px !important',
+            mb: '5px !important',
             '&:hover': { bgcolor: tag.color, opacity: 0.8 }
         }}
     />, [removeTagFromList]);
 
     const handleTagClick = useCallback(tag => {
-        const id = tag.id;
         const [tagList, setTagList] = (
             addTagsSwitch ? [newTags, setNewTags] : [tagsToDelete, setTagsToDelete]
         );
-        if (!tagList.some(t => t === id)) {
-            setTagList(prev => [...prev, id]);
+        if (!tagList.some(t => t.id === tag.id)) {
+            setTagList(prev => [...prev, tag]);
         }
     }, [addTagsSwitch, newTags, setNewTags, tagsToDelete, setTagsToDelete]);
 
     const editComments = useCallback(() => {
-        onEdit({
-            text: singleComment && newText,
-            emotion: newEmotion === 'null' ? null : newEmotion,
-            sentiment: newSentiment === 'null' ? null : newSentiment,
-            tagsToAdd: newTags,
-            tagsToDelete: tagsToDelete
-        });
-    }, [singleComment, onEdit, newText, newEmotion, newSentiment, newTags, tagsToDelete]);
+        onEdit(
+            {
+                text: singleComment && newText,
+                emotion: applyEmotion ? (newEmotion === "null" ? null : newEmotion) : undefined,
+                sentiment: applySentiment ? (newSentiment === "null" ? null : newSentiment) : undefined,
+                tagsToAdd: newTags.map(t => t.id),
+                tagsToDelete: tagsToDelete.map(t => t.id)
+            },
+            () => {
+                setNewTags([]);
+                setTagsToDelete([]);
+            }
+        );
+    }, [
+        singleComment, onEdit, newText, newEmotion, newSentiment,
+        newTags, tagsToDelete, applyEmotion, applySentiment
+    ]);
 
     return <Dialog
         open={open}
@@ -88,7 +107,7 @@ const EditComments = ({ open, onClose, onEdit, amount, singleComment, tags }) =>
         >
             Редактирование комментари{singleComment ? 'я' : 'ев'}
         </DialogTitle>
-        <DialogContent>
+        <DialogContent sx={{ pb: 0 }}>
             <Typography
                 align="center"
                 sx={{ color: 'green', mb: 0.5 }}
@@ -112,15 +131,22 @@ const EditComments = ({ open, onClose, onEdit, amount, singleComment, tags }) =>
                         fullWidth
                         margin="normal"
                     />}
-                    <Stack direction="row" gap={1.5} sx={{ mt: 2 }}>
-                        <FormControl fullWidth>
+                    <Stack direction="row" gap={1.5} sx={{ mt: 2, mb: 2 }}>
+                        <Checkbox
+                            checked={applySentiment}
+                            onChange={e => setApplySentiment(e.target.checked)}
+                        />
+                        <FormControl
+                            fullWidth
+                            sx={{ opacity: applySentiment ? 1 : 0.5 }}
+                        >
                             <InputLabel id="edit-comment-sentiment-label" shrink>Настроение</InputLabel>
                             <Select
                                 labelId="edit-comment-sentiment-label"
                                 value={newSentiment}
                                 label="Настроение"
                                 onChange={e => setNewSentiment(e.target.value)}
-                                required
+                                disabled={!applySentiment}
                                 displayEmpty
                                 renderValue={value => tagBySentiment(sentiments.find(em => em.name === value))}
                                 sx={{ width: '200px' }}
@@ -135,13 +161,21 @@ const EditComments = ({ open, onClose, onEdit, amount, singleComment, tags }) =>
                                 ))}
                             </Select>
                         </FormControl>
-                        <FormControl fullWidth>
+                        <Checkbox
+                            checked={applyEmotion}
+                            onChange={e => setApplyEmotion(e.target.checked)}
+                        />
+                        <FormControl
+                            fullWidth
+                            sx={{ opacity: applyEmotion ? 1 : 0.5 }}
+                        >
                             <InputLabel id="edit-comment-emotion-label" shrink>Эмоция</InputLabel>
                             <Select
                                 labelId="edit-comment-emotion-label"
                                 value={newEmotion}
                                 label="Эмоция"
                                 onChange={e => setNewEmotion(e.target.value)}
+                                disabled={!applyEmotion}
                                 displayEmpty
                                 renderValue={value => tagBySentiment(emotions.find(em => em.name === value))}
                                 sx={{ width: '200px' }}
@@ -167,13 +201,13 @@ const EditComments = ({ open, onClose, onEdit, amount, singleComment, tags }) =>
                             { formValue: false, formLabel: 'Удалить:', tagList: tagsToDelete, setTagList: setTagsToDelete },
                         ].map(row => (
                             <Stack
+                                key={row.formLabel}
                                 direction="row"
                                 sx={{
-                                    width: '50vw',
+                                    width: '30vw', mb: 1,
                                     display: 'flex',
-                                    alignItems: 'center'
+                                    alignItems: 'center',
                                 }}
-                                key={row.formLabel}
                             >
                                 <FormControlLabel value={row.formValue} label={row.formLabel} control={<Radio />} />
                                 <Stack direction="row" flexWrap="wrap" spacing={0.5}>
@@ -185,7 +219,7 @@ const EditComments = ({ open, onClose, onEdit, amount, singleComment, tags }) =>
                 </Stack>
             </Stack>
         </DialogContent>
-        <DialogActions>
+        <DialogActions sx={{ pt: 0 }}>
             <Button
                 color="error"
                 variant="outlined"
