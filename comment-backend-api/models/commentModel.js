@@ -258,6 +258,14 @@ class Comment {
         comments.forEach(comment => mapInPlace(comment));
         return comments;
     }
+
+    static async deleteAll(commentIds) {
+        if (!commentIds || (Array.isArray(commentIds) && commentIds.length === 0)) return;
+        const query = Array.isArray(commentIds)
+            ? `delete from comments where id = any($1)`
+            : `delete from comments where id = $1`;
+        await db.query(query, [commentIds]);
+    }
 }
 
 module.exports = Comment;

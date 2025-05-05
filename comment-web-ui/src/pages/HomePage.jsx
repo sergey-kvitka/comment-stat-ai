@@ -534,6 +534,15 @@ const HomePage = () => {
         setAllComments(prev => prev.map(comment => newCommentsObj[comment.id] ?? comment));
     }, []);
 
+    const deleteComments = useCallback(async ids => {
+        await axios.put(
+            `${process.env.REACT_APP_BACKEND_URL}/api/comment/delete`,
+            { ids: ids },
+            { withCredentials: true }
+        );
+        setAllComments(prev => prev.filter(comment => !ids.includes(comment.id)));
+    }, []);
+
     const handleTextChange = useCallback(e => {
         setTextSubstr(e.target.value);
     }, []);
@@ -627,6 +636,7 @@ const HomePage = () => {
                         tagList={allTags}
                         onAddComment={handleAddComment}
                         onEditComments={editComments}
+                        onDeleteComments={deleteComments}
                         onAnalyze={handleAnalyze}
                         errMapper={mapErrorAfterReq}
                     />

@@ -3,7 +3,7 @@ import {
     List, ListItem, ListItemIcon, Checkbox, ListItemText, Typography, Divider, Chip, Box,
     Paper, Button, TextField, Dialog, DialogActions, DialogContent, DialogTitle, CircularProgress
 } from '@mui/material';
-import { NoteAdd, EditSquare } from '@mui/icons-material';
+import { NoteAdd, EditSquare, Delete } from '@mui/icons-material';
 import useNotificationApi from '../contexts/NotificationContext';
 import Tag from './Tag';
 import EditComments from './EditComments';
@@ -22,7 +22,16 @@ const emotionMap = {
     neutral: { color: '#AAAAAA', text: 'Нет эмоции' },
 };
 
-const CommentList = ({ comments, tags, tagList, onAddComment, onEditComments, onAnalyze, errMapper }) => {
+const CommentList = ({
+    comments,
+    tags,
+    tagList,
+    onAddComment,
+    onEditComments, 
+    onDeleteComments,
+    onAnalyze,
+    errMapper
+}) => {
     const [selected, setSelected] = useState([]);
     const [selectAll, setSelectAll] = useState(false);
     const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
@@ -93,6 +102,19 @@ const CommentList = ({ comments, tags, tagList, onAddComment, onEditComments, on
             );
         }
     }, [onEditComments, selected, setIsEditDialogOpen, notification]);
+
+    const handleCommentsDelete = useCallback(async () => {
+        try {
+            await onDeleteComments(selected);
+        } catch (err) {
+            const error = mapErrorAfterReq(err);
+            notification(
+                error.message,
+                error.isNetworkError ? 'Сетевая ошибка' : 'Ошибка удаления комментариев',
+                { severity: 'error', autoHideDuration: 10000 }
+            );
+        }
+    }, [onDeleteComments, selected, notification]);
 
     const formatDate = dateStr => {
         try {
@@ -219,6 +241,14 @@ const CommentList = ({ comments, tags, tagList, onAddComment, onEditComments, on
                 </Typography>
             </Box>
             <Box sx={{ display: 'flex', gap: 1 }}>
+                <Button
+                    variant="outlined"
+                    color="error"
+                    disabled={!selected.length}
+                    onClick={handleCommentsDelete}
+                    startIcon={<Delete />}
+                    sx={{ mr: 2 }}
+                />
                 <Button
                     variant="outlined"
                     color="success"

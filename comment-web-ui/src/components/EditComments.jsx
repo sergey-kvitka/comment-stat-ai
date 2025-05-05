@@ -68,14 +68,13 @@ const EditComments = ({ open, onClose, onEdit, amount, singleComment, tags }) =>
     }, [addTagsSwitch, newTags, setNewTags, tagsToDelete, setTagsToDelete]);
 
     const editComments = useCallback(() => {
-        const updates = {
+        onEdit({
             text: singleComment && newText,
             emotion: newEmotion === 'null' ? null : newEmotion,
             sentiment: newSentiment === 'null' ? null : newSentiment,
             tagsToAdd: newTags,
             tagsToDelete: tagsToDelete
-        };
-        onEdit(updates);
+        });
     }, [singleComment, onEdit, newText, newEmotion, newSentiment, newTags, tagsToDelete]);
 
     return <Dialog
