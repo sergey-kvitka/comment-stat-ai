@@ -32,9 +32,10 @@ const CommentList = ({
     onEditComments,
     onDeleteComments,
     onAnalyze,
+    selected,
+    setSelected,
     errMapper
 }) => {
-    const [selected, setSelected] = useState([]);
     const [selectAll, setSelectAll] = useState(false);
     const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
     const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
@@ -101,7 +102,7 @@ const CommentList = ({
         } catch (err) {
             defaultErrorNotification(mapErrorAfterReq(err), 'Ошибка удаления комментариев');
         }
-    }, [onDeleteComments, selected, defaultSuccessNotification, defaultErrorNotification]);
+    }, [onDeleteComments, selected, setSelected, defaultSuccessNotification, defaultErrorNotification]);
 
     const formatDate = dateStr => {
         try {

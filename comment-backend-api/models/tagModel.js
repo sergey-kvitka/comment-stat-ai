@@ -6,7 +6,7 @@ const mapInPlace = tag => {
     entityMapService.rename(tag, 'user_id', 'userId');
     entityMapService.rename(tag, 'parent_id', 'parentId');
     if (tag.path) {
-        tag.path = `/${tag.path.split(':')[1]}/`;
+        tag.path = `/${tag.path.split(':')[1]}`;
     }
 };
 
@@ -66,8 +66,9 @@ class Tag {
             )`,
             [JSON.stringify(ids)]
         );
-        mapInPlace(result.rows[0]);
-        return result.rows[0];
+        const tags = result.rows;
+        tags.forEach(tag => mapInPlace(tag));
+        return tags;
     }
 
     static async findByUser(userId) {

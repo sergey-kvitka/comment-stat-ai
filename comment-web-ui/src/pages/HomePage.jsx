@@ -14,7 +14,10 @@ import {
     Stack, RadioGroup, FormControlLabel, Radio, Chip, TextField, FormControl, FormLabel,
     Typography, Paper, InputLabel, MenuItem, Select, Checkbox,
 } from '@mui/material';
-import { Add, Check as CheckIcon, Close as CloseIcon, FilterAlt, Search } from '@mui/icons-material';
+import {
+    Add, Check as CheckIcon, Close as CloseIcon, Download, FilterAlt, Search
+} from '@mui/icons-material';
+
 import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
 import { AdapterDayjs } from '@mui/x-date-pickers/AdapterDayjs';
 import { DateTimePicker } from '@mui/x-date-pickers/DateTimePicker';
@@ -85,6 +88,8 @@ const HomePage = () => {
     const [isFilterApplying, setIsFilterApplying] = useState(false);
 
     const [editedTag, setEditedTag] = useState({ mode: null, name: '' });
+
+    const [selected, setSelected] = useState([]);
 
     const navigate = useNavigate();
     const { notification, defaultSuccessNotification, defaultErrorNotification } = useNotificationApi();
@@ -309,6 +314,8 @@ const HomePage = () => {
             } else {
                 defaultSuccessNotification('Фильтры применены!');
             }
+            const commentIdSet = new Set(comments.map(c => c.id));
+            setSelected(prev => prev.filter(id => commentIdSet.has(id)));
             handleFilterDialogClose();
         } catch (err) {
             // todo: handle 401 everywhere
@@ -490,6 +497,37 @@ const HomePage = () => {
         setTextSubstr(e.target.value);
     }, []);
 
+    const downloadComments = useCallback(async type => {
+        // todo different types
+        try {
+            const response = await axios.post(
+                `${process.env.REACT_APP_BACKEND_URL}/api/comment/export/${type}`,
+                { commentIds: selected },
+                {
+                    withCredentials: true,
+                    responseType: 'blob'
+                }
+            );
+
+            const contentDisposition = response.headers['content-disposition'];
+            const filename = contentDisposition
+                ? contentDisposition.split('filename=')[1].replace(/"/g, '')
+                : `comments.${type}`;
+
+            // Создаем и триггерим скачивание
+            const url = window.URL.createObjectURL(new Blob([response.data]));
+            const link = document.createElement('a');
+            link.href = url;
+            link.setAttribute('download', filename);
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            window.URL.revokeObjectURL(url);
+        } catch (err) {
+            defaultErrorNotification(mapErrorAfterReq(err), `Ошибка загрузки ${type.toUpperCase()}-файла`);
+        }
+    }, [selected, defaultErrorNotification]);
+
     const classSelectStyle = {
         '& .MuiInputLabel-root': {
             backgroundColor: 'background.paper',
@@ -573,6 +611,15 @@ const HomePage = () => {
                         >
                             Фильтры
                         </Button>
+                        <Button
+                            color="success"
+                            variant="outlined"
+                            onClick={() => downloadComments('json')}
+                            startIcon={<Download />}
+                            sx={{ mx: 2 }}
+                        >
+                            Скачать
+                        </Button>
                     </Paper>
                     <MemoizedCommentList
                         comments={allComments}
@@ -582,6 +629,8 @@ const HomePage = () => {
                         onEditComments={editComments}
                         onDeleteComments={deleteComments}
                         onAnalyze={handleAnalyze}
+                        selected={selected}
+                        setSelected={setSelected}
                         errMapper={mapErrorAfterReq}
                     />
                 </Stack>

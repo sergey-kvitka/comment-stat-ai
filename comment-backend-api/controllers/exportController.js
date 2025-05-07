@@ -36,20 +36,25 @@ exports.json = async (req, res) => {
     const indexedTags = {};
     tags.forEach(tag => { indexedTags[tag.id] = tag; });
 
-    const result = comments.map(comment => {
-        const {
-            // these two properties will not be returned
-            userId,
-            analyzed, // todo exact meaning of this column
-            ...commentData
-        } = comment;
-        return {
-            ...commentData,
-            tags: comment.tagIds.map(id => indexedTags[id]?.path).filter(Boolean)
-        };
-    });
-
+    const result = comments
+        .toSorted((a, b) => {
+            const createdDiff = new Date(a.createdStr) - new Date(b.createdStr);
+            return createdDiff ? createdDiff : (+a.id - +b.id);
+        })
+        .map(comment => {
+            const {
+                // these two properties will not be returned
+                tagIds,
+                userId,
+                analyzed, // todo exact meaning of this column
+                ...commentData
+            } = comment;
+            return {
+                ...commentData,
+                tags: comment.tagIds.map(id => indexedTags[id]?.path).filter(Boolean).toSorted()
+            };
+        });
     res.setHeader('Content-Type', 'application/json');
     res.setHeader('Content-Disposition', 'attachment; filename="comments.json"');
-    res.json(result);
+    res.send(JSON.stringify(result, null, 4));
 };
