@@ -3,12 +3,16 @@ const entityMapService = require('../services/entityMapService');
 
 /** Maps <comment> object to required structure */
 const mapInPlace = comment => {
-    if (comment.tag_ids === null) comment.tag_ids = [];
     entityMapService.rename(comment, 'user_id', 'userId');
     entityMapService.rename(comment, 'tag_ids', 'tagIds');
     entityMapService.rename(comment, 'created_at', 'createdStr');
     entityMapService.rename(comment, 'modified_at', 'modifiedStr');
-    if (comment.tagIds) comment.tagIds = comment.tagIds.map(id => String(id));
+
+    if (comment.tagIds === null) {
+        comment.tagIds = [];
+    } else if (comment.tagIds) {
+        comment.tagIds = comment.tagIds.map(id => String(id));
+    }
 }
 
 const commentSelect = /* sql */ `

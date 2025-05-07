@@ -6,6 +6,7 @@ const db = require('./db');
 const authRoutes = require('./routes/authRoutes');
 const aiRoutes = require('./routes/aiRoutes');
 const commentRoutes = require('./routes/commentRoutes');
+const exportRoutes = require('./routes/exportRoutes');
 const tagRoutes = require('./routes/tagRoutes');
 const cookieParser = require('cookie-parser');
 
@@ -34,6 +35,7 @@ function configureRoutes(app) {
     app.use('/api/auth', authRoutes);
     app.use('/api/ai', aiRoutes);
     app.use('/api/comment', commentRoutes);
+    app.use('/api/comment/export', exportRoutes);
     app.use('/api/tag', tagRoutes);
 }
 
