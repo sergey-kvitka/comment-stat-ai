@@ -42,7 +42,12 @@ const TagItem = ({ tag, level = 0, onTagClick, onTagEdit }) => {
                         minWidth: 'max-content'
                     }}
                 >
-                    <Tag text={tag.name} color={tag.color} styles={{ my: '-5px' }} />
+                    <Tag
+                        text={tag.name}
+                        color={tag.color}
+                        title={tag.path}
+                        styles={{ my: '-5px' }}
+                    />
                 </ListItemButton>
                 {
                     onTagEdit && <IconButton

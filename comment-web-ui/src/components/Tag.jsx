@@ -1,7 +1,7 @@
 import { Chip } from "@mui/material";
 import { useMemo } from "react";
 
-const Tag = ({ text, color, onClick = null, styles = {} }) => {
+const Tag = ({ text, color, title, onClick = null, styles = {} }) => {
 
     const textColor = useMemo(() => {
         if (!color || !/^#[0-9A-F]{6}$/i.test(color)) return 'white';
@@ -18,6 +18,7 @@ const Tag = ({ text, color, onClick = null, styles = {} }) => {
         size="small"
         label={text}
         color={color}
+        title={title}
         onClick={onClick}
         sx={{
             bgcolor: color,

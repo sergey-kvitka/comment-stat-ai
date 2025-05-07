@@ -5,6 +5,9 @@ const entityMapService = require('../services/entityMapService');
 const mapInPlace = tag => {
     entityMapService.rename(tag, 'user_id', 'userId');
     entityMapService.rename(tag, 'parent_id', 'parentId');
+    if (tag.path) {
+        tag.path = `/${tag.path.split(':')[1]}/`;
+    }
 };
 
 const tagsToHierarchy = tags => {
@@ -29,8 +32,7 @@ const tagsToHierarchy = tags => {
 class Tag {
     static async create({ name, color, parentId, userId }) {
         const result = await db.query(
-            `insert into tags (name, color, parent_id, user_id) values ($1, $2, $3, $4)
-            returning id, name, color, parent_id, user_id`,
+            `insert into tags (name, color, parent_id, user_id) values ($1, $2, $3, $4) returning *`,
             [name, color, parentId, userId]
         );
         mapInPlace(result.rows[0]);

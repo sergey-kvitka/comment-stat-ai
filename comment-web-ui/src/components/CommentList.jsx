@@ -137,6 +137,7 @@ const CommentList = ({
                 key={tagId}
                 text={tag.name}
                 color={tag.color}
+                title={tag.path}
                 styles={{ my: 0.2, mr: '5px' }}
             />;
         });
