@@ -1,4 +1,5 @@
 const { stringify } = require('csv-stringify');
+const { js2xml } = require('xml-js');
 
 const Comment = require('../models/commentModel');
 const Tag = require('../models/tagModel');
@@ -139,3 +140,58 @@ exports.csv = async (req, res) => { // ? endpoint to return comments and tags as
         }
     );
 };
+
+exports.xml = async (req, res) => { // ? endpoint to return comments and tags as XML-file
+    const commentIds = req.body.commentIds;
+    const userId = req.user.id;
+
+    let comments, indexedTags;
+    try {
+        [comments, indexedTags] = await fetchCommentData(commentIds, userId);
+    } catch (err) {
+        if (err.status === 'userId') {
+            return res.status(403).json({ message: "It is forbidden to edit other users' comments" });
+        }
+        return res.status(500).json({ message: err.message });
+    }
+
+    const tagMapper = tagIds => ({
+        tag: tagIds
+            .map(id => indexedTags[id]?.path)
+            .filter(Boolean)
+            .toSorted()
+            .map(path => ({ _text: path }))
+    });
+    const commentData = comments
+        .toSorted(commentComparator)
+        .map(comment => commentMapper(comment, tagMapper));
+
+    try {
+        const xml = js2xml(
+            {
+                comments: {
+                    comment: commentData.map(comment => {
+                        comment._attributes = { id: comment.id };
+                        comment.text = { _cdata: comment.text };
+                        delete comment.id;
+                        return comment;
+                    })
+                }
+            },
+            {
+                spaces: 4,
+                compact: true,
+                ignoreComment: true,
+                attributesKey: '_attributes',
+                textKey: '_text',
+                cdataKey: '_cdata'
+            }
+        );
+        res.setHeader('Content-Type', 'application/xml');
+        res.setHeader('Content-Disposition', 'attachment; filename="comments.xml"');
+        res.send(xml);
+    } catch (err) {
+        console.error('XML export error:', err);
+        res.status(500).json({ message: 'Failed to generate XML export' });
+    }
+}
