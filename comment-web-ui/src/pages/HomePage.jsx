@@ -616,9 +616,26 @@ const HomePage = () => {
                             variant="outlined"
                             onClick={() => downloadComments('json')}
                             startIcon={<Download />}
-                            sx={{ mx: 2 }}
+                            sx={{ ml: 2 }}
                         >
-                            Скачать
+                            JSON
+                        </Button>
+                        <Button
+                            variant="outlined"
+                            onClick={() => downloadComments('csv')}
+                            startIcon={<Download />}
+                            sx={{ ml: 2 }}
+                        >
+                            CSV
+                        </Button>
+                        <Button
+                            color="warning"
+                            variant="outlined"
+                            onClick={() => downloadComments('xml')}
+                            startIcon={<Download />}
+                            sx={{ ml: 2 }}
+                        >
+                            XML
                         </Button>
                     </Paper>
                     <MemoizedCommentList

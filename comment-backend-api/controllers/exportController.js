@@ -65,6 +65,8 @@ const commentMapper = (comment, tagMapper) => {
     } = comment;
     return {
         ...commentData,
+        createdStr: comment.createdStr.toISOString(),
+        modifiedStr: comment.modifiedStr.toISOString(),
         tags: tagMapper(comment.tagIds)
     };
 };
@@ -117,7 +119,7 @@ exports.csv = async (req, res) => { // ? endpoint to return comments and tags as
             .map(id => indexedTags[id]?.path)
             .filter(Boolean)
             .toSorted()
-            .join('; ')
+            .join(';')
     );
     const result = comments
         .toSorted(commentComparator)
@@ -127,7 +129,7 @@ exports.csv = async (req, res) => { // ? endpoint to return comments and tags as
         result,
         {
             header: true,
-            columns: Object.keys(preparedData[0] || {}).map(key => ({ key: key, header: key }))
+            columns: Object.keys(result[0] || {}).map(key => ({ key: key, header: key }))
         },
         (err, output) => {
             if (err) {
