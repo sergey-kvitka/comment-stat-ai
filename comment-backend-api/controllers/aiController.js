@@ -42,6 +42,6 @@ exports.analyze = async (req, res) => {
         res.status(200).json(indexed);
     } catch (err) {
         console.error('Error making external request:', err);
-        res.status(500).json({ error: 'External API request failed' });
+        res.status(500).json({ message: 'External API request failed' });
     }
 };
