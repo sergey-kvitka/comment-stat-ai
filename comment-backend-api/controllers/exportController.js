@@ -1,75 +1,10 @@
 const { stringify } = require('csv-stringify');
 const { js2xml } = require('xml-js');
 
-const Comment = require('../models/commentModel');
-const Tag = require('../models/tagModel');
+const fileDataService = require('../services/fileDataService');
 
 require('dotenv').config();
 
-/**
- * Function that wraps asyncronous DB request in try-catch
- */
-const defaultErrorHandler = async supplier => {
-    try {
-        const result = await supplier();
-        return [result, null];
-    } catch (err) {
-        console.error(err);
-        return [null, err];
-    }
-};
-
-/**
- * Function that fetches comments and tags data and map it into readable structures
- */
-const fetchCommentData = async (commentIds, userId) => {
-    const [comments, commentError] = await defaultErrorHandler(() => Comment.findByIdList(commentIds));
-    if (commentError) throw commentError;
-
-    // todo: maybe admin would be allowed to do it
-    if (comments.some(c => c.userId != userId)) {
-        const userIdError = new Error("It is forbidden to edit other users' comments");
-        userIdError.status = "userId";
-        console.error(userIdError);
-        throw userIdError;
-    }
-
-    let tagIds = comments.flatMap(comment => comment.tagIds || []);
-    tagIds = Array.from(new Set(tagIds));
-
-    const [tags, tagError] = await defaultErrorHandler(() => Tag.findByIdList(tagIds));
-    if (tagError) throw tagError;
-
-    const indexedTags = {};
-    tags.forEach(tag => { indexedTags[tag.id] = tag; });
-
-    return [comments, indexedTags];
-};
-
-/**
- * Comparing function to sort comments in default order
- */
-const commentComparator = (a, b) => {
-    const createdDiff = new Date(a.createdStr) - new Date(b.createdStr);
-    return createdDiff ? createdDiff : (+a.id - +b.id);
-};
-
-/**
- * Mapping function that excludes unnessessary properties from comments and maps tag ID array
- */
-const commentMapper = (comment, tagMapper) => {
-    const {
-        tagIds,
-        userId,
-        ...commentData
-    } = comment;
-    return {
-        ...commentData,
-        createdStr: comment.createdStr.toISOString(),
-        modifiedStr: comment.modifiedStr.toISOString(),
-        tags: tagMapper(comment.tagIds)
-    };
-};
 
 exports.json = async (req, res) => { // ? endpoint to return comments and tags as JSON-file
     const commentIds = req.body.commentIds;
@@ -77,7 +12,7 @@ exports.json = async (req, res) => { // ? endpoint to return comments and tags a
 
     let comments, indexedTags;
     try {
-        [comments, indexedTags] = await fetchCommentData(commentIds, userId);
+        [comments, indexedTags] = await fileDataService.fetchCommentData(commentIds, userId);
     } catch (err) {
         if (err.status === 'userId') {
             return res.status(403).json({ message: "It is forbidden to edit other users' comments" });
@@ -92,8 +27,8 @@ exports.json = async (req, res) => { // ? endpoint to return comments and tags a
             .toSorted()
     );
     const result = comments
-        .toSorted(commentComparator)
-        .map(comment => commentMapper(comment, tagMapper));
+        .toSorted(fileDataService.commentComparator)
+        .map(comment => fileDataService.commentMapper(comment, tagMapper));
 
     res.setHeader('Content-Type', 'application/json');
     res.setHeader('Content-Disposition', 'attachment; filename="comments.json"');
@@ -106,7 +41,7 @@ exports.csv = async (req, res) => { // ? endpoint to return comments and tags as
 
     let comments, indexedTags;
     try {
-        [comments, indexedTags] = await fetchCommentData(commentIds, userId);
+        [comments, indexedTags] = await fileDataService.fetchCommentData(commentIds, userId);
     } catch (err) {
         if (err.status === 'userId') {
             return res.status(403).json({ message: "It is forbidden to edit other users' comments" });
@@ -122,8 +57,8 @@ exports.csv = async (req, res) => { // ? endpoint to return comments and tags as
             .join(';')
     );
     const result = comments
-        .toSorted(commentComparator)
-        .map(comment => commentMapper(comment, tagMapper));
+        .toSorted(fileDataService.commentComparator)
+        .map(comment => fileDataService.commentMapper(comment, tagMapper));
 
     stringify(
         result,
@@ -149,7 +84,7 @@ exports.xml = async (req, res) => { // ? endpoint to return comments and tags as
 
     let comments, indexedTags;
     try {
-        [comments, indexedTags] = await fetchCommentData(commentIds, userId);
+        [comments, indexedTags] = await fileDataService.fetchCommentData(commentIds, userId);
     } catch (err) {
         if (err.status === 'userId') {
             return res.status(403).json({ message: "It is forbidden to edit other users' comments" });
@@ -165,8 +100,8 @@ exports.xml = async (req, res) => { // ? endpoint to return comments and tags as
             .map(path => ({ _text: path }))
     });
     const commentData = comments
-        .toSorted(commentComparator)
-        .map(comment => commentMapper(comment, tagMapper));
+        .toSorted(fileDataService.commentComparator)
+        .map(comment => fileDataService.commentMapper(comment, tagMapper));
 
     try {
         const xml = js2xml(

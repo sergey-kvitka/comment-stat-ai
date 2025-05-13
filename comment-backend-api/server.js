@@ -8,8 +8,11 @@ const authRoutes = require('./routes/authRoutes');
 const aiRoutes = require('./routes/aiRoutes');
 const commentRoutes = require('./routes/commentRoutes');
 const exportRoutes = require('./routes/exportRoutes');
+const importRoutes = require('./routes/importRoutes');
 const tagRoutes = require('./routes/tagRoutes');
+
 const cookieParser = require('cookie-parser');
+
 
 function createApp() {
     const app = express();
@@ -33,6 +36,7 @@ function configureRoutes(app) {
     app.use('/api/ai', aiRoutes);
     app.use('/api/comment', commentRoutes);
     app.use('/api/comment/export', exportRoutes);
+    app.use('/api/comment/import', importRoutes);
     app.use('/api/tag', tagRoutes);
 }
 
