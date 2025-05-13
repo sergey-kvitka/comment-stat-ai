@@ -45,3 +45,11 @@ devtest.js
 
 # docs
 */docs-html
+
+# python & AI
+*/__pycache__
+models/trained/
+*.pt
+*.pth
+*.h5
+*.bin
