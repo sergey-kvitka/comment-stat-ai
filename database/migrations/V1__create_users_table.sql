@@ -1,4 +1,4 @@
-create table public.users (
+create table users (
     id serial primary key,
     username varchar(50) not null,
     email varchar(100) unique not null,

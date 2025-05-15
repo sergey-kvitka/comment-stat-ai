@@ -47,17 +47,18 @@ const updateCommentSql = `update comments set
     analyzed = coalesce($3, false),
     modified_at  = clock_timestamp(),
     sentiment_id = (select id from sentiments where name = $4 and $4 is not null),
-    emotion_id   = (select id from emotions   where name = $5 and $5 is not null)
-    where id = $6 ` + commentReturning;
+    emotion_id   = (select id from emotions   where name = $5 and $5 is not null),
+    last_modify_manual = $6
+    where id = $7 ` + commentReturning;
 
 class Comment {
 
-    static async save({ id, text, userId, sentiment, emotion, analyzed, tagIds }) {
+    static async save({ id, text, userId, sentiment, emotion, analyzed, manualModified = false, tagIds }) {
         let result;
         if (id === null) {
             result = await db.query(insertCommentSql, [text, userId, analyzed, sentiment, emotion]);
         } else {
-            result = await db.query(updateCommentSql, [text, userId, analyzed, sentiment, emotion, id]);
+            result = await db.query(updateCommentSql, [text, userId, analyzed, sentiment, emotion, manualModified, id]);
         }
         let comment = result.rows[0];
         mapInPlace(comment);

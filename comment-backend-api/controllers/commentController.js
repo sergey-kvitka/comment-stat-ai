@@ -51,7 +51,7 @@ exports.updateAll = async (req, res) => {
         const updates = req.body;
         if (comments.length !== 1) updates.text = undefined;
         comments.forEach(comment => {
-            ["text", "emotion", "sentiment"].forEach(column => {
+            ["text", "emotion", "sentiment", "analyzed"].forEach(column => {
                 if (updates[column] !== undefined) comment[column] = updates[column];
             });
             const resultTags = new Set(comment.tagIds);
@@ -62,7 +62,7 @@ exports.updateAll = async (req, res) => {
                 updates.tagsToDelete.forEach(tag => resultTags.delete(String(tag)));
             }
             comment.tagIds = Array.from(resultTags);
-            // comment.analyzed can't be updated here
+            comment.manualModified = true;
         });
         comments = await Comment.saveAll(comments);
         res.status(200).json({ comments: comments });
