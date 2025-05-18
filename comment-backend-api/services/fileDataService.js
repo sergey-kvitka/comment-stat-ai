@@ -93,3 +93,15 @@ exports.getFileContent = files => {
     }
     return fileContent;
 };
+
+exports.processTxtString = str => {
+    if (str.startsWith('"') && str.endsWith('"')) {
+        try {
+            const parsed = JSON.parse(str);
+            if (typeof parsed === 'string') {
+                return parsed;
+            }
+        } catch (_) { }
+    }
+    return str;
+}

@@ -1,4 +1,4 @@
-const { stringify } = require('csv-stringify');
+const csv = require('csv-stringify');
 const { js2xml } = require('xml-js');
 
 const fileDataService = require('../services/fileDataService');
@@ -60,7 +60,7 @@ exports.csv = async (req, res) => { // ? endpoint to return comments and tags as
         .toSorted(fileDataService.commentComparator)
         .map(comment => fileDataService.commentMapper(comment, tagMapper));
 
-    stringify(
+    csv.stringify(
         result,
         {
             header: true,
@@ -132,3 +132,23 @@ exports.xml = async (req, res) => { // ? endpoint to return comments and tags as
         res.status(500).json({ message: 'Failed to generate XML export' });
     }
 }
+
+exports.txt = async (req, res) => { // ? endpoint to return only comments' content as TXT-file
+    const commentIds = req.body.commentIds;
+    const userId = req.user.id;
+
+    let comments;
+    try {
+        [comments,] = await fileDataService.fetchCommentData(commentIds, userId);
+    } catch (err) {
+        if (err.status === 'userId') {
+            return res.status(403).json({ message: "It is forbidden to edit other users' comments" });
+        }
+        return res.status(500).json({ message: err.message });
+    }
+
+    const result = comments.map(comment => comment.text.replace(/[\n\r]+/g, ' '));
+    res.setHeader('Content-Type', 'text/plain');
+    res.setHeader('Content-Disposition', 'attachment; filename="comments.txt"');
+    res.send(result.join('\n'));
+};

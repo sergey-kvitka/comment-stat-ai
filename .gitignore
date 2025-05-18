@@ -53,3 +53,6 @@ models/trained/
 *.pth
 *.h5
 *.bin
+
+# uploads
+*/uploads

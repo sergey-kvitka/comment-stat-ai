@@ -10,6 +10,9 @@ const upload = require('multer')({
 const router = express.Router();
 
 router.post('/json', authMiddleware.protect, upload.single('jsonFile'), importController.json);
-router.post('/jsono', upload.single('jsonFile'), importController.json);
+router.post('/txt', authMiddleware.protect, upload.single('txtFile'), importController.txt);
+
+router.post('/public/json', authMiddleware.protectAPI, upload.single('jsonFile'), importController.json);
+router.post('/public/txt', authMiddleware.protectAPI, upload.single('txtFile'), importController.txt);
 
 module.exports = router;

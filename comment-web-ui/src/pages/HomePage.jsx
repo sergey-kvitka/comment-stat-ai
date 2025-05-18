@@ -333,7 +333,6 @@ const HomePage = () => {
             `${process.env.REACT_APP_BACKEND_URL}/api/comment/save`,
             {
                 comment: {
-                    id: null,
                     text: commentText.trim(),
                     sentiment: null,
                     emotion: null,
@@ -638,6 +637,15 @@ const HomePage = () => {
                             sx={{ ml: 2 }}
                         >
                             XML
+                        </Button>
+                        <Button
+                            color="secondary"
+                            variant="outlined"
+                            onClick={() => downloadComments('txt')}
+                            startIcon={<Download />}
+                            sx={{ ml: 2 }}
+                        >
+                            TXT
                         </Button>
                     </Paper>
                     <MemoizedCommentList

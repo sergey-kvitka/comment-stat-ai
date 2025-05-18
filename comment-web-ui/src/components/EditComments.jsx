@@ -126,6 +126,8 @@ const EditComments = ({ open, onClose, onEdit, amount, singleComment, tags }) =>
                     {singleComment && <TextField
                         label="Текст комментария"
                         variant="outlined"
+                        multiline
+                        rows={2}
                         value={newText}
                         onChange={e => setNewText(e.target.value)}
                         fullWidth

@@ -55,7 +55,7 @@ class Comment {
 
     static async save({ id, text, userId, sentiment, emotion, analyzed, manualModified = false, tagIds }) {
         let result;
-        if (id === null) {
+        if (!id) {
             result = await db.query(insertCommentSql, [text, userId, analyzed, sentiment, emotion]);
         } else {
             result = await db.query(updateCommentSql, [text, userId, analyzed, sentiment, emotion, manualModified, id]);
