@@ -6,7 +6,7 @@ import EditTag from '../components/EditTag';
 
 import useNotificationApi from '../contexts/NotificationContext';
 
-import React, { useEffect, useState, useCallback, useMemo } from 'react';
+import React, { useEffect, useState, useCallback, useMemo, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 
 import {
@@ -15,7 +15,7 @@ import {
     Typography, Paper, InputLabel, MenuItem, Select, Checkbox,
 } from '@mui/material';
 import {
-    Add, Check as CheckIcon, Close as CloseIcon, Download, FilterAlt, Search
+    Add, Check as CheckIcon, Close as CloseIcon, Download, FileUpload, FilterAlt, Search
 } from '@mui/icons-material';
 
 import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
@@ -47,6 +47,14 @@ const sentiments = [
     { desc: 'Нейтральный', name: 'neutral', color: '#AAAAAA' },
     { desc: 'Негативный', name: 'negative', color: '#EE0000' },
 ];
+
+const mimeMap = {
+    'application/json': 'json',
+    'text/plain': 'txt',
+    'text/csv': 'csv',
+    'application/xml': 'xml',
+    'text/xml': 'xml'
+};
 
 const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -90,6 +98,8 @@ const HomePage = () => {
     const [editedTag, setEditedTag] = useState({ mode: null, name: '' });
 
     const [selected, setSelected] = useState([]);
+
+    const fileInputRef = useRef(null);
 
     const navigate = useNavigate();
     const { notification, defaultSuccessNotification, defaultErrorNotification } = useNotificationApi();
@@ -529,6 +539,43 @@ const HomePage = () => {
         }
     }, [selected, defaultErrorNotification]);
 
+    const uploadComments = useCallback(async e => {
+        const file = e.target.files[0];
+        if (!file) return;
+
+        const formData = new FormData();
+        formData.append('dataFile', file, file.name);
+
+        const type = mimeMap[file.type];
+        if (!type) {
+            notification(
+                `Не удалось распознать тип файла "${file.name}"!`,
+                'Ошибка загрузки данных',
+                { severity: 'error' }
+            );
+            return;
+        }
+        try {
+            console.log(formData);
+            const response = await axios.post(
+                `${process.env.REACT_APP_BACKEND_URL}/api/comment/import/${type}`,
+                formData,
+                {
+                    withCredentials: true,
+                    headers: {
+                        'Content-Type': 'multipart/form-data',
+                    },
+                }
+            );
+            // todo handle response
+            defaultSuccessNotification(`Данные из файла "${file.name}" успешно сохранены!`);
+        } catch (err) {
+            defaultErrorNotification(mapErrorAfterReq(err), `Ошибка получения данных из файла "${file.name}"!`);
+        } finally {
+            e.target.value = '';
+        }
+    }, [notification, defaultSuccessNotification, defaultErrorNotification]);
+
     const classSelectStyle = {
         '& .MuiInputLabel-root': {
             backgroundColor: 'background.paper',
@@ -602,21 +649,47 @@ const HomePage = () => {
                             height: '120px',
                             marginInline: 2,
                             marginTop: 1,
-                            p: 2
+                            px: 2,
+                            py: 1,
+                            display: 'flex',
+                            flexWrap: 'wrap',
+                            justifyContent: 'end',
+                            alignItems: 'center'
                         }}
                     >
                         <Button
                             variant="outlined"
                             onClick={() => setIsFilterDialogOpen(true)}
                             startIcon={<FilterAlt />}
+                            sx={{ flexBasis: '10%', overflow: 'hidden' }}
                         >
                             Фильтры
                         </Button>
+                        <div style={{ flexBasis: '80%' }}/>
+                        <Button
+                            color="success"
+                            variant="outlined"
+                            onClick={() => fileInputRef.current.click()}
+                            startIcon={<FileUpload />}
+                            sx={{ flexBasis: '10%', overflow: 'hidden' }}
+                            title="Загрузка комментариев из файлов с устройства (форматы: TXT, JSON, CSV и XML)"
+                        >
+                            Загрузить
+                        </Button>
+                        <input
+                            type="file"
+                            ref={fileInputRef}
+                            onChange={uploadComments}
+                            accept=".json,.xml,.csv,.txt,application/json,application/xml,text/xml,text/plain,text/csv"
+                            style={{ display: 'none' }}
+                        />
                         <Button
                             color="success"
                             variant="outlined"
                             onClick={() => downloadComments('json')}
                             startIcon={<Download />}
+                            disabled={!selected.length}
+                            title="Скачать выбранные комментарии в виде файла формата JSON"
                             sx={{ ml: 2 }}
                         >
                             JSON
@@ -625,6 +698,8 @@ const HomePage = () => {
                             variant="outlined"
                             onClick={() => downloadComments('csv')}
                             startIcon={<Download />}
+                            disabled={!selected.length}
+                            title="Скачать выбранные комментарии в виде файла формата CSV"
                             sx={{ ml: 2 }}
                         >
                             CSV
@@ -634,6 +709,8 @@ const HomePage = () => {
                             variant="outlined"
                             onClick={() => downloadComments('xml')}
                             startIcon={<Download />}
+                            disabled={!selected.length}
+                            title="Скачать выбранные комментарии в виде файла формата XML"
                             sx={{ ml: 2 }}
                         >
                             XML
@@ -643,6 +720,8 @@ const HomePage = () => {
                             variant="outlined"
                             onClick={() => downloadComments('txt')}
                             startIcon={<Download />}
+                            disabled={!selected.length}
+                            title="Скачать выбранные комментарии в виде файла формата TXT"
                             sx={{ ml: 2 }}
                         >
                             TXT
