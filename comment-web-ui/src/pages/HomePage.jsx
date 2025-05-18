@@ -376,9 +376,11 @@ const HomePage = () => {
 
     const tagsAsObject = useMemo(() => {
         const tagsObj = {};
-        allTags.forEach(tag => {
-            tagsObj[tag.id] = tag;
-        });
+        if (allTags) {
+            allTags.forEach(tag => {
+                tagsObj[tag.id] = tag;
+            });
+        }
         return tagsObj;
     }, [allTags]);
 

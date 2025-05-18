@@ -18,6 +18,15 @@ class User {
         const result = await db.query(`select id, username, email from users where id = $1`, [id]);
         return result.rows[0];
     }
+
+    static async findByKeyAPI(key) {
+        const result = await db.query( /* sql */ `
+            select u.id, u.username, u.email from user_config c
+            join users u on c.user_id = u.id and c.api_key = $1
+            `, [key]
+        );
+        return result.rows[0];
+    }
 }
 
 module.exports = User;
