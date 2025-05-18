@@ -1,6 +1,7 @@
 const express = require('express');
-const cors = require('cors');
 require('dotenv').config();
+
+const conditionalCors = require('./middlewares/cors');
 
 const db = require('./db');
 const authRoutes = require('./routes/authRoutes');
@@ -19,11 +20,7 @@ function createApp() {
 
     // CORS
     if (!process.env.WEB_UI_URL) throw new Error('WEB_UI_URL not configured in .env');
-    app.use(cors({
-        origin: process.env.WEB_UI_URL,
-        credentials: true,
-        exposedHeaders: ['Set-Cookie']
-    }));
+    app.use(conditionalCors);
 
     // health check
     app.get('/', (_, res) => res.send('Node.js service is running'));

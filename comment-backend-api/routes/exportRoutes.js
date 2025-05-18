@@ -8,4 +8,8 @@ router.post('/json', authMiddleware.protect, exportController.json);
 router.post('/csv', authMiddleware.protect, exportController.csv);
 router.post('/xml', authMiddleware.protect, exportController.xml);
 
+router.post('/public/json', authMiddleware.protectAPI, exportController.json);
+router.post('/public/csv', authMiddleware.protectAPI, exportController.csv);
+router.post('/public/xml', authMiddleware.protectAPI, exportController.xml);
+
 module.exports = router;
