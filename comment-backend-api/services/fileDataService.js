@@ -2,6 +2,7 @@ const fs = require('fs');
 
 const Comment = require('../models/commentModel');
 const Tag = require('../models/tagModel');
+const Stat = require('../models/statModel');
 
 /**
  * Function that wraps asyncronous DB request in try-catch
@@ -94,14 +95,21 @@ exports.getFileContent = files => {
     return fileContent;
 };
 
-exports.processTxtString = str => {
-    if (str.startsWith('"') && str.endsWith('"')) {
-        try {
-            const parsed = JSON.parse(str);
-            if (typeof parsed === 'string') {
-                return parsed;
-            }
-        } catch (_) { }
-    }
-    return str;
-}
+/**
+ * Saves statistics about data import/export
+ * @param {*} userId user ID
+ * @param {string} action `import`/`export`
+ * @param {string} type data file type like `json` or `csv`
+ * @param {integer} amount amount to save (if `0` or less, stat will not be saved)
+ */
+exports.saveStat = async (userId, action, type, amount) => {
+    if (amount < 1) return;
+    Stat.save({
+        userId: userId,
+        action: `comment-data-${action}`,
+        type: type,
+        amount: amount
+    }).catch(
+        err => console.error(`Failed to save data ${(action ?? 'manipulation')} stats: `, err)
+    );
+};

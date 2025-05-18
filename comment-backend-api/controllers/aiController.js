@@ -1,5 +1,6 @@
 const commentService = require('../services/commentService');
 const Comment = require('../models/commentModel');
+const Stat = require('../models/statModel');
 require('dotenv').config();
 
 const axios = require('axios');
@@ -21,6 +22,16 @@ exports.analyze = async (req, res) => {
             `${process.env.AI_SERVICE_URL}/api/analyze`,
             { comments: commentsToAnalyze },
             { headers: { 'Content-Type': 'application/json' } }
+        );
+
+        Stat.save({ // saving stats asyncronously
+            userId: req.user.id,
+            action: 'comment-analysis-time',
+            type: 'elapsed',
+            value: response.data.elapsed_ms,
+            amount: response.data.amount
+        }).catch(
+            err => console.error('Failed to save analysis stats: ', err)
         );
 
         analyzedComments = response.data.comments;

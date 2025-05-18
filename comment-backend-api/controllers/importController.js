@@ -23,8 +23,6 @@ exports.json = async (req, res) => {
         return res.status(400).json({ message: "Unable parse JSON from attached file" });
     }
 
-    console.log(data);
-
     // todo validate JSON
     // todo validate data
 
@@ -40,9 +38,17 @@ exports.json = async (req, res) => {
             ...saveInfo,
             userId: userId,
             text: (comment.text ?? "").trim(),
+            manualModified: true,
         };
     });
-    await Comment.saveAll(comments);
+    try {
+        await Comment.saveAll(comments);
+    } catch (err) {
+        console.error(err);
+        return res.status(500).json({ message: err.message });
+    }
+
+    fileDataService.saveStat(userId, 'import', 'json', comments.length);
 
     // todo hangle tags
 
@@ -69,9 +75,17 @@ exports.txt = async (req, res) => {
         .map(line => ({
             userId: userId,
             text: line, // only comments' text is handled on TXT import
+            manualModified: true,
         }))
         ;
-    await Comment.saveAll(comments);
+    try {
+        await Comment.saveAll(comments);
+    } catch (err) {
+        console.error(err);
+        return res.status(500).json({ message: err.message });
+    }
 
     res.status(200).end();
+    
+    fileDataService.saveStat(userId, 'import', 'txt', comments.length);
 };

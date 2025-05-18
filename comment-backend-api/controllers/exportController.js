@@ -33,6 +33,8 @@ exports.json = async (req, res) => { // ? endpoint to return comments and tags a
     res.setHeader('Content-Type', 'application/json');
     res.setHeader('Content-Disposition', 'attachment; filename="comments.json"');
     res.send(JSON.stringify(result, null, 4));
+
+    fileDataService.saveStat(userId, 'export', 'json', result.length);
 };
 
 exports.csv = async (req, res) => { // ? endpoint to return comments and tags as CSV-file
@@ -74,6 +76,8 @@ exports.csv = async (req, res) => { // ? endpoint to return comments and tags as
             res.setHeader('Content-Type', 'text/csv');
             res.setHeader('Content-Disposition', 'attachment; filename="comments.csv"');
             res.send(output);
+
+            fileDataService.saveStat(userId, 'export', 'csv', result.length);
         }
     );
 };
@@ -127,6 +131,8 @@ exports.xml = async (req, res) => { // ? endpoint to return comments and tags as
         res.setHeader('Content-Type', 'application/xml');
         res.setHeader('Content-Disposition', 'attachment; filename="comments.xml"');
         res.send(xml);
+
+        fileDataService.saveStat(userId, 'export', 'xml', commentData.length);
     } catch (err) {
         console.error('XML export error:', err);
         res.status(500).json({ message: 'Failed to generate XML export' });
@@ -151,4 +157,6 @@ exports.txt = async (req, res) => { // ? endpoint to return only comments' conte
     res.setHeader('Content-Type', 'text/plain');
     res.setHeader('Content-Disposition', 'attachment; filename="comments.txt"');
     res.send(result.join('\n'));
+
+    fileDataService.saveStat(userId, 'export', 'txt', result.length);
 };
