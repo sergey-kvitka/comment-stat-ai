@@ -25,6 +25,7 @@ import { ruRU } from '@mui/x-date-pickers/locales';
 import { formatISO } from 'date-fns';
 
 import 'dayjs/locale/ru';
+import Header from '../components/Header';
 
 const dateTimeFormat = 'DD.MM.YYYY HH:mm:ss';
 
@@ -310,19 +311,21 @@ const HomePage = () => {
         setIsFilterDialogOpen(false);
     }, []);
 
-    const handleFilterApplying = useCallback(async () => {
+    const handleFilterApplying = useCallback(async (notifySuccess = true) => {
         if (isFilterApplying) { return; }
         setIsFilterApplying(true);
         try {
             const comments = await getCommentsByFilters();
             setAllComments([...comments]);
-            if (comments?.length === 0) {
-                notification(
-                    'Комментарии не найдены! Попробуйте изменить параметры фильтрации.',
-                    null, { severity: 'warning' }
-                );
-            } else {
-                defaultSuccessNotification('Фильтры применены!');
+            if (notifySuccess) {
+                if (comments?.length === 0) {
+                    notification(
+                        'Комментарии не найдены! Попробуйте изменить параметры фильтрации.',
+                        null, { severity: 'warning' }
+                    );
+                } else {
+                    defaultSuccessNotification('Фильтры применены!');
+                }
             }
             const commentIdSet = new Set(comments.map(c => c.id));
             setSelected(prev => prev.filter(id => commentIdSet.has(id)));
@@ -556,8 +559,7 @@ const HomePage = () => {
             return;
         }
         try {
-            console.log(formData);
-            const response = await axios.post(
+            await axios.post(
                 `${process.env.REACT_APP_BACKEND_URL}/api/comment/import/${type}`,
                 formData,
                 {
@@ -569,12 +571,13 @@ const HomePage = () => {
             );
             // todo handle response
             defaultSuccessNotification(`Данные из файла "${file.name}" успешно сохранены!`);
+            handleFilterApplying(false);
         } catch (err) {
             defaultErrorNotification(mapErrorAfterReq(err), `Ошибка получения данных из файла "${file.name}"!`);
         } finally {
             e.target.value = '';
         }
-    }, [notification, defaultSuccessNotification, defaultErrorNotification]);
+    }, [notification, defaultSuccessNotification, defaultErrorNotification, handleFilterApplying]);
 
     const classSelectStyle = {
         '& .MuiInputLabel-root': {
@@ -588,17 +591,10 @@ const HomePage = () => {
     };
 
     return <>
-        <Box
-            sx={{
-                background: '#444444',
-                width: '100%',
-                height: '64px',
-                padding: '16px',
-                boxSizing: 'border-box'
-            }}
-        >
-            <Button variant='contained' size='small' onClick={handleLogout}>Выйти из профиля</Button>
-        </Box>
+        <Header
+            currentPage={"home"}
+            onLogout={handleLogout}
+        />
         <Box
             sx={{
                 height: 'calc(100vh - 64px)',
@@ -665,7 +661,7 @@ const HomePage = () => {
                         >
                             Фильтры
                         </Button>
-                        <div style={{ flexBasis: '80%' }}/>
+                        <div style={{ flexBasis: '80%' }} />
                         <Button
                             color="success"
                             variant="outlined"

@@ -1,4 +1,5 @@
 const db = require('../db');
+const entityMapService = require('../services/entityMapService');
 
 class User {
     static async create({ username, email, password }) {
@@ -20,7 +21,12 @@ class User {
     }
 
     static async findById(id) {
-        const result = await db.query(`select id, username, email from users where id = $1`, [id]);
+        const result = await db.query( /* sql */ `
+            select u.id, u.username, u.email, c.api_key from users u
+            join user_config c on c.user_id = u.id and u.id = $1`,
+            [id]
+        );
+        entityMapService.rename(result.rows[0] ?? {}, 'api_key', 'apiKey');
         return result.rows[0];
     }
 

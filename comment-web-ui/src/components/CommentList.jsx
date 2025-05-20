@@ -222,6 +222,7 @@ const CommentList = ({
                 <Typography component="h2" variant="h6">
                     Комментарии ({comments.length})
                 </Typography>
+                {selected.length > 0 && <Typography className='selected-count-info'>Выбрано: {selected.length}</Typography>}
             </Box>
             <Box sx={{ display: 'flex', gap: 2.5 }}>
                 <Button
