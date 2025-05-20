@@ -36,6 +36,7 @@ yarn-error.log*
 # tests
 */coverage
 devtest.js
+*.pytest_cache
 
 # build
 */build

@@ -26,9 +26,13 @@ exports.register = async (req, res) => {
         const { username, email, password } = req.body;
 
         // Проверка на существующего пользователя
-        const existingUser = await User.findByEmail(email);
+        let existingUser = await User.findByEmail(email);
         if (existingUser) {
-            return res.status(400).json({ message: 'User already exists' });
+            return res.status(400).json({ message: 'Пользователь с таким адресом электронной почты уже зарегистрирован.' });
+        }
+        existingUser = await User.findByUsername(username);
+        if (existingUser) {
+            return res.status(400).json({ message: 'Пользователь с таким именем пользователя уже существует.' });
         }
 
         // Хеширование пароля
@@ -64,13 +68,13 @@ exports.login = async (req, res) => {
         // Проверка на существующего пользователя
         const user = await User.findByEmail(email);
         if (!user) {
-            return res.status(401).json({ message: 'Invalid email or password' });
+            return res.status(401).json({ message: 'Неверное имя пользователя или пароль.' });
         }
 
         // Проверка пароля
         const isPasswordCorrect = await bcrypt.compare(password, user.password);
         if (!isPasswordCorrect) {
-            return res.status(401).json({ message: 'Invalid email or password' });
+            return res.status(401).json({ message: 'Неверное имя пользователя или пароль.' });
         }
 
         // Генерация токена

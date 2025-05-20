@@ -14,6 +14,11 @@ class User {
         return result.rows[0];
     }
 
+    static async findByUsername(username) {
+        const result = await db.query(`select * from users where username = $1`, [username]);
+        return result.rows[0];
+    }
+
     static async findById(id) {
         const result = await db.query(`select id, username, email from users where id = $1`, [id]);
         return result.rows[0];

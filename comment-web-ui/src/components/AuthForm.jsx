@@ -1,6 +1,18 @@
-import { useState } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
+import {
+    Box,
+    Button,
+    TextField,
+    Typography,
+    Link,
+    Paper,
+    Container,
+    Alert
+} from '@mui/material';
+
+const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
 
 const AuthForm = ({ type }) => {
     const [email, setEmail] = useState('');
@@ -9,68 +21,144 @@ const AuthForm = ({ type }) => {
     const [error, setError] = useState('');
     const navigate = useNavigate();
 
+    useEffect(() => {
+        setEmail('');
+        setPassword('');
+        setUsername('');
+        setError('');
+    }, [type]);
+
+    const isLogin = useMemo(() => {
+        return type === 'login';
+    }, [type]);
+
     const handleSubmit = async e => {
         e.preventDefault();
-        setError("");
+        setError('');
 
         try {
-            const url = `${process.env.REACT_APP_BACKEND_URL}/api/auth/${type === 'login' ? 'login' : 'register'}`;
-            const data = type === 'login'
-                ? { email, password }
-                : { email, password, username };
+            const emailText = email.trim();
+            const usernameText = username.trim();
 
+            if (!isLogin) {
+                const errors = [];
+                if (!emailRegex.test(emailText)) {
+                    errors.push('• Неверый формат адреса электронной почты.');
+                }
+                if (usernameText.length < 4) {
+                    errors.push('• Минимальная длина имени пользователя – 4 символа.');
+                }
+                if (password.length < 6) {
+                    errors.push('• Минимальная длина пароля – 6 символов.');
+                }
+                if (errors.length) {
+                    setError(errors.join('\n'));
+                    return;
+                }
+            }
+
+            const url = `${process.env.REACT_APP_BACKEND_URL}/api/auth/${isLogin ? 'login' : 'register'}`;
+            const data = isLogin
+                ? { email: email.trim(), password: password }
+                : { email: email.trim(), password: password, username: username.trim() };
             const response = await axios.post(url, data, { withCredentials: true });
+
             if (response.status === 200 || response.status === 201) {
                 navigate('/home');
             }
         } catch (err) {
-            setError(err.response?.data?.message || 'An error occurred');
+            console.error(err);
+            setError(err.response?.data?.message || 'Произошла ошибка! Попробуйте повторить вход или обновить страницу.');
         }
     };
 
-    return <div className="auth-form">
-        <h2>{type === 'login' ? 'Login' : 'Register'}</h2>
-        {error && <p className="error">{error}</p>}
-        <form onSubmit={handleSubmit}>
-            {type === 'register' && (
-                <div>
-                    <label>Username</label>
-                    <input
-                        type="text"
-                        value={username}
-                        onChange={(e) => setUsername(e.target.value)}
+    return <>
+        <Typography variant="h4" className="auth-main-header main-grad">Comment Stat</Typography>
+        <Container component="main" maxWidth="xs">
+            <Paper elevation={3} sx={{ mt: 8, p: 4, pt:3, display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                <Typography component="h1" variant="h4">
+                    {isLogin ? 'Авторизация' : 'Регистрация'}
+                </Typography>
+
+                {error && (
+                    <Alert severity="error" sx={{ width: '100%', mt: 2 }}>
+                        {
+                            error.split('\n').map((line, i) => (
+                                <div key={i}>{line}</div>
+                            ))
+                        }
+                    </Alert>
+                )}
+
+                <Box
+                    component="form"
+                    onSubmit={handleSubmit}
+                    sx={{ mt: 1, width: '100%' }}
+                    autoComplete={isLogin ? 'on' : 'off'}
+                >
+                    {!isLogin && (
+                        <TextField
+                            margin="normal"
+                            required
+                            fullWidth
+                            id="register-username"
+                            label="Имя пользователя"
+                            name="register-username"
+                            autoComplete="username"
+                            value={username}
+                            onChange={(e) => setUsername(e.target.value)}
+                        />
+                    )}
+
+                    <TextField
+                        margin="normal"
                         required
+                        fullWidth
+                        id={`${type}-email`}
+                        label="Адрес электронной почты"
+                        name={`${type}-email`}
+                        autoComplete="email"
+                        autoFocus={isLogin}
+                        value={email}
+                        onChange={e => setEmail(e.target.value)}
                     />
-                </div>
-            )}
-            <div>
-                <label>Email</label>
-                <input
-                    type="email"
-                    value={email}
-                    onChange={e => setEmail(e.target.value)}
-                    required
-                />
-            </div>
-            <div>
-                <label>Password</label>
-                <input
-                    type="password"
-                    value={password}
-                    onChange={e => setPassword(e.target.value)}
-                    required
-                />
-            </div>
-            <button type="submit">
-                {type === 'login' ? 'Login' : 'Register'}
-            </button>
-        </form>
-        {type === 'login' ? (
-            <p>Don't have an account? <a href="/register">Register</a></p>
-        ) : (
-            <p>Already have an account? <a href="/login">Login</a></p>
-        )}
-    </div>;
+
+                    <TextField
+                        margin="normal"
+                        required
+                        fullWidth
+                        name={`${type}-password`}
+                        label="Пароль"
+                        type="password"
+                        id={`${type}-password`}
+                        autoComplete={isLogin ? 'current-password' : 'new-password'}
+                        value={password}
+                        onChange={e => setPassword(e.target.value)}
+                    />
+
+                    <Button
+                        type="submit"
+                        color="success"
+                        fullWidth
+                        variant="contained"
+                        sx={{ mt: 3, mb: 2 }}
+                    >
+                        {isLogin ? 'Авторизоваться' : 'Зарегистрироваться'}
+                    </Button>
+
+                    <Box textAlign="center">
+                        <Typography variant="body2">
+                            {isLogin ? (
+                                <>Ещё нет аккаунта? <Link href="/register">Зарегистрируйтесь!</Link></>
+                            ) : (
+                                <>Уже есть аккаунт? <Link href="/login">Авторизуйтесь!</Link></>
+                            )}
+                        </Typography>
+                    </Box>
+                </Box>
+            </Paper>
+        </Container>
+    </>;
 };
 
 export default AuthForm;
