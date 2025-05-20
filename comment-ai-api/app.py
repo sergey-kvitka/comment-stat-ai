@@ -1,22 +1,29 @@
 from flask import Flask, request, jsonify
-from transformers import pipeline
 from flask_cors import CORS
 import time
+from emotion_classifier import EmotionClassifier
+from dotenv import dotenv_values
+import uuid as _uuid
+
+CONFIG = dotenv_values(".env")
 
 app = Flask(__name__)
 CORS(app, resources={
     r"/api/*": {
-        "origins": ["http://localhost:4000"],
+        "origins": [CONFIG["BACKEND_API_URL"]],
         "methods": ["POST"],
         "allow_headers": ["Content-Type"]
     }
 })
 
-# Загрузка моделей для русского языка
-emotion_classifier = pipeline(
-    "text-classification", model="cointegrated/rubert-tiny2-cedr-emotion-detection")
-sentiment_classifier = pipeline(
-    "text-classification", model="blanchefort/rubert-base-cased-sentiment")
+emotion_classifier = EmotionClassifier('./model/trained/model.pth')
+
+emotion_classifier.predict_raw('Я люблю писать код!')
+print('\nEmotion classifier is ready!\n')
+
+
+def uuid():
+    return str(_uuid.uuid4())
 
 
 @app.route('/api/analyze', methods=['POST'])
@@ -32,24 +39,20 @@ def analyze_comments():
     }
     comments_result = {}
     for comment in comments:
+
         text = comment['text']
 
-        # Анализ эмоций
-        print(emotion_classifier(text))
-        emotion_result = emotion_classifier(text)[0]
-        emotion = emotion_result['label']
-        if emotion == 'no_emotion':
-            emotion = 'neutral'
+        if 'id' in comment:
+            id = comment['id']
+        else:
+            id = uuid()
 
-        # Анализ тональности
-        print(sentiment_classifier(text))
-        sentiment_result = sentiment_classifier(text)[0]
-        sentiment = sentiment_result['label'].lower()
+        classification_result = emotion_classifier.classify(text)
 
-        comments_result[comment['id']] = {
+        comments_result[id] = {
             'text': text,
-            'sentiment': sentiment,
-            'emotion': emotion
+            'sentiment': classification_result['sentiment'],
+            'emotion': classification_result['emotion'],
         }
 
     response['comments'] = comments_result
@@ -61,4 +64,7 @@ def analyze_comments():
 
 
 if __name__ == '__main__':
-    app.run(debug=True)
+    app.run(
+        port=int(CONFIG['PORT']),
+        debug=True
+    )

@@ -5,6 +5,36 @@ import string
 
 
 class EmotionClassifier:
+
+    GROUPINGS = {
+        'a': {
+            'emotions': {
+                'joy': [
+                    'admiration', 'amusement', 'excitement', 'gratitude',
+                    'joy', 'love', 'optimism', 'pride', 'approval'
+                ],
+                'anger': ['anger', 'annoyance', 'disapproval', 'disgust'],
+                'sadness': [
+                    'disappointment', 'grief', 'remorse', 'sadness', 'embarrassment',
+                    'disappointment', 'grief', 'remorse', 'sadness', 'embarrassment',
+                ],
+                'surprise': ['confusion', 'curiosity', 'realization', 'relief', 'surprise'],
+                'fear': ['embarrassment', 'fear', 'nervousness'],
+                'neutral': ['neutral'],
+            },
+            'sentiments': {
+                'positive': ['approval', 'admiration', 'amusement', 'excitement', 'joy', 'love', 'optimism'],
+                'negative': [
+                    'disapproval', 'anger', 'annoyance', 'disappointment', 'disgust', 'fear', 'grief', 'nervousness', 'sadness'
+                ],
+                'neutral': [
+                    'caring', 'confusion', 'curiosity', 'desire',
+                    'gratitude', 'pride', 'realization', 'relief', 'remorse', 'surprise', 'neutral'
+                ],
+            }
+        }
+    }
+
     # Конфигурация класса
     MODEL_NAME = "bert-base-multilingual-uncased"
     CLASSES = [
@@ -72,7 +102,10 @@ class EmotionClassifier:
             )
 
         probs = torch.sigmoid(outputs.logits).cpu().numpy()[0]
-        return {emotion: float(prob) for emotion, prob in zip(self.CLASSES, probs)}
+        result = {
+            emotion: float(prob) for emotion, prob in zip(self.CLASSES, probs)
+        }
+        return dict(sorted(result.items(), key=lambda pair: -pair[1]))
 
     # todo: implement
     @staticmethod
@@ -121,3 +154,68 @@ class EmotionClassifier:
             'top3': top3,
             'categories': categories
         }
+
+    def classify(self, text, *, grouping="a", neutral_decrease=0.1):
+
+        prediction = self.predict_raw(text)
+        selected_grouping = self.GROUPINGS[grouping]
+
+        emotions = {}
+        for emotion, classes in selected_grouping['emotions'].items():
+            emotions[emotion] = sum(prediction[c] for c in classes)
+
+        emotions = dict(sorted(emotions.items(), key=lambda pair: -pair[1]))
+
+        sentiments = {}
+        for sentiment, classes in selected_grouping['sentiments'].items():
+            sentiments[sentiment] = sum(prediction[c] for c in classes)
+
+        sentiments = dict(
+            sorted(sentiments.items(), key=lambda pair: -pair[1]))
+
+        result = {
+            'emotion': next(iter(emotions.items()))[0],
+            'sentiment': next(iter(sentiments.items()))[0],
+            'raw_emotion': next(iter(prediction.items()))[0],
+            'information': {
+                'emotions': emotions,
+                'sentiments': sentiments,
+                'raw_emotions': prediction,
+                'correction': [],
+            }
+        }
+
+        sentiment_values = [pair[1] for pair in list(sentiments.items())]
+        emotion_values = [pair[1] for pair in list(emotions.items())]
+
+        if result['emotion'] == 'neutral' \
+                and emotion_values[0] - emotion_values[1] <= neutral_decrease \
+                and emotion_values[0] - emotion_values[2] > neutral_decrease * 2:
+            result['emotion'] = list(emotions.items())[1][0]
+            result['information']['correction'].append(
+                f'neutral-decrease-emotion-{neutral_decrease:.3f}'
+            )
+
+        if result['sentiment'] == 'neutral' \
+                and sentiment_values[0] - sentiment_values[1] <= neutral_decrease \
+                and sentiment_values[0] - sentiment_values[2] > neutral_decrease * 2:
+            result['sentiment'] = list(sentiments.items())[1][0]
+            result['information']['correction'].append(
+                f'neutral-decrease-sentiment-{neutral_decrease:.3f}'
+            )
+        elif result['sentiment'] != 'neutral' \
+                and sentiment_values[0] - sentiment_values[1] <= neutral_decrease \
+                and sentiment_values[1] - sentiment_values[2] <= neutral_decrease:
+            result['sentiment'] = 'neutral'
+            result['information']['correction'].append(
+                f'sentiment-controversial-{neutral_decrease:.3f}'
+            )
+
+        if (result['sentiment'] == 'negative' and result['emotion'] == 'joy') \
+                or (result['sentiment'] == 'positive' and result['emotion'] in ['anger', 'sadness', 'fear']):
+            result['sentiment'] = 'neutral'
+            result['information']['correction'].append(
+                f'{result["sentiment"]}-{result["emotion"]}'
+            )
+
+        return result
