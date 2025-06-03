@@ -4,6 +4,9 @@ import WelcomePage from './pages/WelcomePage';
 import HomePage from './pages/HomePage';
 import LoginPage from './pages/LoginPage';
 import RegisterPage from './pages/RegisterPage';
+import StatsDashboard from './components/StatsDashboard';
+import StatsProvider from './contexts/StatsProvider';
+import StatPage from './pages/StatPage';
 
 function Application() {
     return (
@@ -15,6 +18,18 @@ function Application() {
                 <Route path="/home" element={
                     <PrivateRoute>
                         <HomePage />
+                    </PrivateRoute>
+                } />
+                <Route path="/dashboard" element={
+                    <PrivateRoute>
+                        <StatsDashboard />
+                    </PrivateRoute>
+                } />
+                <Route path="/stat/dashboard" element={
+                    <PrivateRoute>
+                        <StatsProvider>
+                            <StatPage />
+                        </StatsProvider>
                     </PrivateRoute>
                 } />
             </Routes>

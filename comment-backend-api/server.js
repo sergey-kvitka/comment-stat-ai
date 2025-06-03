@@ -10,6 +10,7 @@ const commentRoutes = require('./routes/commentRoutes');
 const exportRoutes = require('./routes/exportRoutes');
 const importRoutes = require('./routes/importRoutes');
 const tagRoutes = require('./routes/tagRoutes');
+const statRoutes = require('./routes/statRoutes');
 
 const cookieParser = require('cookie-parser');
 
@@ -38,6 +39,7 @@ function configureRoutes(app) {
     app.use('/api/comment/export', exportRoutes);
     app.use('/api/comment/import', importRoutes);
     app.use('/api/tag', tagRoutes);
+    app.use('/api/stat', statRoutes);
 }
 
 function getConfiguredPort() {

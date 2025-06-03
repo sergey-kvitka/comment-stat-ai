@@ -44,7 +44,7 @@ const Header = ({ currentPage, onLogout }) => {
                 setApiKey(userData.apiKey);
                 setUserLoaded(true);
             } catch (err) {
-                console.log(err);
+                console.error(err);
                 defaultErrorNotification(mapErrorAfterReq(err), 'Ошибка загрузки данных пользователя');
             }
         };
@@ -88,12 +88,19 @@ const Header = ({ currentPage, onLogout }) => {
                     }}
                 >Рабочее пространство</Link>
                 <Link
-                    href="/dashboard"
+                    href="/stat/dashboard"
                     aria-label="to dashboard"
+                    sx={{
+                        textDecoration: currentPage === 'stat/dashboard' ? 'underline !important' : 'none'
+                    }}
+                >Аналитическая панель</Link>
+                <Link
+                    href="/dashboard"
+                    aria-label="to stat example"
                     sx={{
                         textDecoration: currentPage === 'dashboard' ? 'underline !important' : 'none'
                     }}
-                >Аналитическая панель</Link>
+                >Пример статистики</Link>
             </Box>
 
             <IconButton
