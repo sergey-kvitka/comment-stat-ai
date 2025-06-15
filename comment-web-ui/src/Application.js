@@ -7,6 +7,7 @@ import RegisterPage from './pages/RegisterPage';
 import StatsDashboard from './components/StatsDashboard';
 import StatsProvider from './contexts/StatsProvider';
 import StatPage from './pages/StatPage';
+import StatComparison from './components/StatComparison';
 
 function Application() {
     return (
@@ -23,6 +24,11 @@ function Application() {
                 <Route path="/dashboard" element={
                     <PrivateRoute>
                         <StatsDashboard />
+                    </PrivateRoute>
+                } />
+                <Route path="/test" element={
+                    <PrivateRoute>
+                        <StatComparison />
                     </PrivateRoute>
                 } />
                 <Route path="/stat/dashboard" element={
