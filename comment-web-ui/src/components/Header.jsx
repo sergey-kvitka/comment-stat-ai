@@ -87,20 +87,20 @@ const Header = ({ currentPage, onLogout }) => {
                         textDecoration: currentPage === 'home' ? 'underline !important' : 'none'
                     }}
                 >Рабочее пространство</Link>
-                <Link
+                {/* <Link
                     href="/stat/dashboard"
                     aria-label="to dashboard"
                     sx={{
                         textDecoration: currentPage === 'stat/dashboard' ? 'underline !important' : 'none'
                     }}
-                >Аналитическая панель</Link>
+                >Аналитическая панель</Link> */}
                 <Link
                     href="/dashboard"
                     aria-label="to stat example"
                     sx={{
                         textDecoration: currentPage === 'dashboard' ? 'underline !important' : 'none'
                     }}
-                >Пример статистики</Link>
+                >Аналитическая панель</Link>
             </Box>
 
             <IconButton
@@ -146,17 +146,17 @@ const Header = ({ currentPage, onLogout }) => {
                             <TextField
                                 label="Имя пользователя"
                                 value={username}
-                                readonly
+                                readOnly
                             />
                             <TextField
                                 label="Адрес электронной почты"
                                 value={email}
-                                readonly
+                                readOnly
                             />
                             <TextField
                                 label="Ключ API"
                                 value={apiKey}
-                                readonly
+                                readOnly
                             />
                             {/* eslint-disable-next-line */}
                             <a

@@ -1,5 +1,10 @@
-import { useState, useEffect } from 'react';
+import axios from 'axios';
+import { useState, useEffect, useCallback } from 'react';
 import { format } from 'date-fns';
+import StatComparison from './StatComparison';
+import { useNavigate } from 'react-router-dom';
+
+
 import {
     Box,
     Typography,
@@ -7,8 +12,7 @@ import {
     Grid,
     Tabs,
     Tab,
-    CircularProgress,
-    useTheme
+    CircularProgress
 } from '@mui/material';
 import {
     LineChart,
@@ -25,6 +29,8 @@ import {
     ResponsiveContainer,
     Cell
 } from 'recharts';
+import useNotificationApi from '../contexts/NotificationContext';
+import Header from './Header';
 
 // Цвета для различных категорий
 const COLORS = {
@@ -52,36 +58,58 @@ const COLORS = {
     export: '#009688'
 };
 
+const emotionMap = {
+    joy: 'Радость',
+    anger: 'Злость',
+    sadness: 'Грусть',
+    surprise: 'Удивление',
+    fear: 'Страх',
+    neutral: 'Нет эмоции'
+};
+
+const sentimentMap = {
+    positive: 'Позитивные',
+    negative: 'Негативные',
+    neutral: 'Нейтральные'
+};
+
 const StatsDashboard = () => {
     const [data, setData] = useState(null);
     const [loading, setLoading] = useState(true);
-    const [error, setError] = useState(null);
+    const [error, ] = useState(null);
     const [activeTab, setActiveTab] = useState(0);
-    const theme = useTheme();
+
+    const { notification, defaultErrorNotification } = useNotificationApi();
+
+    const navigate = useNavigate();
 
     useEffect(() => {
-        // Имитация запроса к API
         const fetchData = async () => {
             try {
-                // В реальном приложении здесь был бы axios.get('/api/stats')
-                // Для демонстрации используем статические данные
-                const response = { data: require('./generated_stats_week.json') };
-
-                // Обработка данных
-                const processedData = processData(response.data);
+                const response = await axios.get(
+                    `${process.env.REACT_APP_BACKEND_URL}/api/stat/all`,
+                    { withCredentials: true }
+                );
+                const rawData = response.data ?? { stats: [] };
+                const processedData = processData(rawData);
                 setData(processedData);
                 setLoading(false);
+                if (!rawData.stats.length) {
+                    notification(
+                        'Не удалось найти статистические данные',
+                        null, { severity: 'warning' }
+                    );
+                }
             } catch (err) {
-                setError(err.message);
+                defaultErrorNotification(mapErrorAfterReq(err), 'Ошибка загрузки комментариев');
                 setLoading(false);
             }
         };
-
         fetchData();
-    }, []);
+    }, [notification, defaultErrorNotification]);
 
-    const processData = (rawData) => {
-        const stats = rawData['select * from stats order by saved_at desc'];
+    const processData = rawData => {
+        const stats = rawData['stats'];
 
         // Группировка по дням для временных графиков
         const dailyData = {};
@@ -100,7 +128,7 @@ const StatsDashboard = () => {
         };
 
         stats.forEach(item => {
-            const date = new Date(item.saved_at);
+            const date = new Date(item.savedAt);
             const dayKey = format(date, 'yyyy-MM-dd');
 
             // Обработка данных анализа комментариев
@@ -243,6 +271,10 @@ const StatsDashboard = () => {
         };
     };
 
+    const handleLogout = useCallback(() => {
+        navigate('/login');
+    }, [navigate]);
+
     if (loading) {
         return (
             <Box display="flex" justifyContent="center" alignItems="center" minHeight="200px">
@@ -284,7 +316,7 @@ const StatsDashboard = () => {
                                     type="monotone"
                                     dataKey={`${dataKeyPrefix}Sentiment_${key}`}
                                     stroke={COLORS.sentiment[key]}
-                                    name={`${key} (настроение)`}
+                                    name={`${sentimentMap[key]}`}
                                 />
                             ))}
                         </LineChart>
@@ -305,7 +337,7 @@ const StatsDashboard = () => {
                                     type="monotone"
                                     dataKey={`${dataKeyPrefix}Emotion_${key}`}
                                     stroke={COLORS.emotion[key]}
-                                    name={`${key} (эмоция)`}
+                                    name={`${emotionMap[key]}`}
                                 />
                             ))}
                         </LineChart>
@@ -315,15 +347,17 @@ const StatsDashboard = () => {
         );
     };
 
-    return (
+    return <>
+        <Header currentPage="dashboard" onLogout={handleLogout} />
         <Box sx={{ p: 3 }}>
-            <Typography variant="h4" gutterBottom>Аналитика комментариев</Typography>
+            <Typography variant="h4" gutterBottom sx={{ml:1.5}}>Аналитика комментариев</Typography>
 
             <Tabs value={activeTab} onChange={(e, newValue) => setActiveTab(newValue)} sx={{ mb: 3 }}>
                 <Tab label="Анализ комментариев" />
                 <Tab label="Время анализа" />
                 <Tab label="Импорт/Экспорт" />
                 <Tab label="Распределение" />
+                <Tab label="Сравнение" />
             </Tabs>
 
             {activeTab === 0 && (
@@ -419,7 +453,7 @@ const StatsDashboard = () => {
                                                 <Cell key={`cell-${index}`} fill={COLORS.formats[entry.name]} />
                                             ))}
                                         </Pie>
-                                        <Tooltip />
+                                        <Tooltip formatter={(value) => [`${value}`, 'Количество']} />
                                     </PieChart>
                                 </ResponsiveContainer>
                             </Paper>
@@ -444,7 +478,7 @@ const StatsDashboard = () => {
                                                 <Cell key={`cell-${index}`} fill={COLORS.formats[entry.name]} />
                                             ))}
                                         </Pie>
-                                        <Tooltip />
+                                        <Tooltip formatter={(value) => [`${value}`, 'Количество']} />
                                     </PieChart>
                                 </ResponsiveContainer>
                             </Paper>
@@ -459,9 +493,9 @@ const StatsDashboard = () => {
 
                     <Grid container spacing={3}>
                         <Grid item xs={12} md={6}>
-                            <Paper sx={{ p: 2 }}>
+                            <Paper sx={{ p: 2, fontFamily: 'Arial' }}>
                                 <Typography variant="h6" gutterBottom>Распределение настроений</Typography>
-                                <ResponsiveContainer width={400} height={300}>
+                                <ResponsiveContainer width={450} height={300}>
                                     <PieChart>
                                         <Pie
                                             data={data.sentimentEmotionDistribution.ai.sentiment}
@@ -472,21 +506,21 @@ const StatsDashboard = () => {
                                             fill="#8884d8"
                                             dataKey="value"
                                             nameKey="name"
-                                            label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+                                            label={({ name, percent }) => `${sentimentMap[name]} ${(percent * 100).toFixed(0)}%`}
                                         >
                                             {data.sentimentEmotionDistribution.ai.sentiment.map((entry, index) => (
                                                 <Cell key={`cell-${index}`} fill={COLORS.sentiment[entry.name]} />
                                             ))}
                                         </Pie>
-                                        <Tooltip />
+                                        <Tooltip formatter={(value) => [`${value}`, 'Количество']} />
                                     </PieChart>
                                 </ResponsiveContainer>
                             </Paper>
                         </Grid>
                         <Grid item xs={12} md={6}>
-                            <Paper sx={{ p: 2 }}>
+                            <Paper sx={{ p: 2, fontFamily: 'Arial' }}>
                                 <Typography variant="h6" gutterBottom>Распределение эмоций</Typography>
-                                <ResponsiveContainer width={400} height={300}>
+                                <ResponsiveContainer width={450} height={300}>
                                     <PieChart>
                                         <Pie
                                             data={data.sentimentEmotionDistribution.ai.emotion}
@@ -497,13 +531,13 @@ const StatsDashboard = () => {
                                             fill="#8884d8"
                                             dataKey="value"
                                             nameKey="name"
-                                            label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+                                            label={({ name, percent }) => `${emotionMap[name]} ${(percent * 100).toFixed(0)}%`}
                                         >
                                             {data.sentimentEmotionDistribution.ai.emotion.map((entry, index) => (
                                                 <Cell key={`cell-${index}`} fill={COLORS.emotion[entry.name]} />
                                             ))}
                                         </Pie>
-                                        <Tooltip />
+                                        <Tooltip formatter={(value) => [`${value}`, 'Количество']} />
                                     </PieChart>
                                 </ResponsiveContainer>
                             </Paper>
@@ -515,9 +549,9 @@ const StatsDashboard = () => {
 
                     <Grid container spacing={3}>
                         <Grid item xs={12} md={6}>
-                            <Paper sx={{ p: 2 }}>
+                            <Paper sx={{ p: 2, fontFamily: 'Arial' }}>
                                 <Typography variant="h6" gutterBottom>Распределение настроений</Typography>
-                                <ResponsiveContainer width={400} height={300}>
+                                <ResponsiveContainer width={450} height={300}>
                                     <PieChart>
                                         <Pie
                                             data={data.sentimentEmotionDistribution.manual.sentiment}
@@ -528,21 +562,21 @@ const StatsDashboard = () => {
                                             fill="#8884d8"
                                             dataKey="value"
                                             nameKey="name"
-                                            label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+                                            label={({ name, percent }) => `${sentimentMap[name]} ${(percent * 100).toFixed(0)}%`}
                                         >
                                             {data.sentimentEmotionDistribution.manual.sentiment.map((entry, index) => (
                                                 <Cell key={`cell-${index}`} fill={COLORS.sentiment[entry.name]} />
                                             ))}
                                         </Pie>
-                                        <Tooltip />
+                                        <Tooltip formatter={(value) => [`${value}`, 'Количество']} />
                                     </PieChart>
                                 </ResponsiveContainer>
                             </Paper>
                         </Grid>
                         <Grid item xs={12} md={6}>
-                            <Paper sx={{ p: 2 }}>
+                            <Paper sx={{ p: 2, fontFamily: 'Arial' }}>
                                 <Typography variant="h6" gutterBottom>Распределение эмоций</Typography>
-                                <ResponsiveContainer width={400} height={300}>
+                                <ResponsiveContainer width={450} height={300}>
                                     <PieChart>
                                         <Pie
                                             data={data.sentimentEmotionDistribution.manual.emotion}
@@ -553,13 +587,13 @@ const StatsDashboard = () => {
                                             fill="#8884d8"
                                             dataKey="value"
                                             nameKey="name"
-                                            label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+                                            label={({ name, percent }) => `${emotionMap[name]} ${(percent * 100).toFixed(0)}%`}
                                         >
                                             {data.sentimentEmotionDistribution.manual.emotion.map((entry, index) => (
                                                 <Cell key={`cell-${index}`} fill={COLORS.emotion[entry.name]} />
                                             ))}
                                         </Pie>
-                                        <Tooltip />
+                                        <Tooltip formatter={(value) => [`${value}`, 'Количество']} />
                                     </PieChart>
                                 </ResponsiveContainer>
                             </Paper>
@@ -567,8 +601,51 @@ const StatsDashboard = () => {
                     </Grid>
                 </Box>
             </>}
+            {activeTab === 4 && <>
+                <StatComparison />
+            </>}
         </Box>
-    );
+    </>;
 };
+
+function mapErrorAfterReq(err) {
+    const response = err.response;
+    const message = err.message;
+
+    if (!(response || err.request)) {
+        return {
+            message: message || 'Неизвестная ошибка',
+            type: 'setup_error'
+        };
+    }
+    if (response) {
+        return {
+            message: response.data?.message || `Неизвестная ошибка сервиса! Статус: ${response.status}.`,
+            status: response.status,
+            data: response.data,
+            type: 'server_error'
+        };
+    }
+    if (err.code === 'ECONNREFUSED') {
+        return {
+            message: 'Ошибка соединения — сервис недоступен! Попробуйте позже или перезагрузите страницу.',
+            code: err.code,
+            isNetworkError: true,
+            type: 'connection_refused'
+        };
+    } else if (message && message.includes('Network Error')) {
+        return {
+            message: 'Ошибка сети! Пожалуйста, проверьте интернет-соединение и перезагрузите страницу.',
+            isNetworkError: true,
+            type: 'network_error'
+        };
+    }
+    return {
+        message: message || 'Неизвестная ошибка запроса',
+        code: err.code,
+        isNetworkError: true,
+        type: 'request_error'
+    };
+}
 
 export default StatsDashboard;

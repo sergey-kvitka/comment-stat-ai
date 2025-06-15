@@ -158,3 +158,37 @@ select {
     color: #666666;
     translate: 0 1px;
 }
+
+.comparison-selected-tags {
+    font-family: Arial, Helvetica, sans-serif;
+    font-size: 18px;
+    display: flex;
+    flex-direction: row;
+    gap: 12px;
+    align-items: center;
+    margin: 12px 4px 18px;
+}
+
+.comparison-selected-tags .p3, .comparison-selected-tags .p5 {
+    color: grey;
+    background-color: rgb(243, 243, 243);
+    border-radius: 8px;
+    padding-inline: 3px;
+    border: 1px solid white;
+    cursor: pointer;
+}
+
+.comparison-selected-tags .p3:hover, .comparison-selected-tags .p5:hover {
+    border: 1px solid rgb(179, 179, 179);
+    box-shadow: 4px 4px 8px 0px rgba(34, 60, 80, 0.2);
+}
+
+.comparison-selected-tags .p2 {
+    color: rgb(10, 10, 143);
+    text-decoration: underline;
+}
+
+.comparison-selected-tags .p4 {
+    color: rgb(112, 5, 5);
+    text-decoration: underline;
+}

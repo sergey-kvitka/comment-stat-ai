@@ -1,6 +1,10 @@
-import { Box, Typography, Grid, Paper, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Divider } from '@mui/material';
+import axios from 'axios';
+import { Box, Typography, Grid, Paper, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Divider, Button, DialogTitle, Dialog, DialogContent, DialogActions } from '@mui/material';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend } from 'recharts';
 import Tag from './Tag';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import TagTree from '../components/TagTree';
+import useNotificationApi from '../contexts/NotificationContext';
 
 const COLORS = [
     '#4cbf40',
@@ -14,27 +18,13 @@ const COLORS = [
     '#ff9800',
 ];
 
-// sentiment: {
-//     positive: '#4caf50',
-//     negative: '#f44336',
-//     neutral: '#ff9800',
-// },
-// emotion: {
-//     joy: '#4caf50',
-//     anger: '#f44336',
-//     sadness: '#2196f3',
-//     surprise: '#ff9800',
-//     fear: '#9c27b0',
-//     neutral: '#9e9e9e',
-// },
-
 const emotionMap = {
     joy: 'Радость',
     anger: 'Злость',
     sadness: 'Грусть',
     surprise: 'Удивление',
     fear: 'Страх',
-    neutral: 'Нейтрально'
+    neutral: 'Нет эмоции'
 };
 
 const sentimentMap = {
@@ -44,7 +34,19 @@ const sentimentMap = {
 };
 
 const StatComparison = () => {
-    const data = {
+
+    const [allTags, setAllTags] = useState([]);
+
+    const [leftTag, setLeftTag] = useState(null);
+    const [rightTag, setRightTag] = useState(null);
+    const [newTag, setNewTag] = useState(null);
+
+    const [leftSelecting, setLeftSelecting] = useState(false);
+    const [tagSelectDialogOpened, setTagSelectDialogOpened] = useState(false);
+
+    const { notification, defaultSuccessNotification, defaultErrorNotification } = useNotificationApi();
+
+    const data = useMemo(() => ({
         general: {
             totalAmount: 1033,
             commonAmount: 468
@@ -101,9 +103,38 @@ const StatComparison = () => {
                 neutral: 103
             }
         }
-    };
+    }), []);
 
-    const prepareEmotionData = (emotions) => {
+    const openTagSelectMenu = useCallback(tagToSelect => {
+        setLeftSelecting(tagToSelect === 'left');
+        setTagSelectDialogOpened(true);
+    }, []);
+
+    const loadComparison = useCallback(async () => {
+
+    }, []);
+
+    const handleTagClick = useCallback(tag => {
+        (leftSelecting ? setLeftTag : setRightTag)(tag);
+    }, [leftSelecting]);
+
+    const loadTags = useCallback(async () => {
+        try {
+            const response = await axios.get(
+                `${process.env.REACT_APP_BACKEND_URL}/api/tag/all`,
+                { withCredentials: true }
+            );
+            setAllTags(response.data.tags);
+        } catch (err) {
+            defaultErrorNotification(mapErrorAfterReq(err), 'Ошибка загрузки тегов');
+        }
+    }, [defaultErrorNotification]);
+
+    useEffect(() => {
+        loadTags();
+    }, [loadTags]);
+
+    const prepareEmotionData = emotions => {
         return Object.keys(emotions).map(key => ({
             name: emotionMap[key],
             value: emotions[key],
@@ -111,7 +142,7 @@ const StatComparison = () => {
         }));
     };
 
-    const prepareSentimentData = (sentiments) => {
+    const prepareSentimentData = sentiments => {
         return Object.keys(sentiments).map(key => ({
             name: sentimentMap[key],
             value: sentiments[key],
@@ -315,7 +346,7 @@ const StatComparison = () => {
     const renderPieChart = (data, title) => (
         <Box sx={{ mb: 3, p: 1, border: '1px solid #eee', borderRadius: 1 }}>
             <Typography variant="subtitle1" gutterBottom>{title}</Typography>
-            <ResponsiveContainer width="100%" height={300} style={{fontFamily: 'Arial'}}>
+            <ResponsiveContainer width="100%" height={300} style={{ fontFamily: 'Arial' }}>
                 <PieChart>
                     <Pie
                         data={data}
@@ -338,9 +369,59 @@ const StatComparison = () => {
         </Box>
     );
 
-    return (
-        <Box sx={{ p: 3 }}>
-            <Typography variant="h4" gutterBottom>Сравнение статистики</Typography>
+    return <>
+        <Dialog
+            open={tagSelectDialogOpened}
+            onClose={() => setTagSelectDialogOpened(false)}
+        >
+            <DialogTitle>Выбор {leftSelecting ? "левого" : "правого"} тега</DialogTitle>
+            <DialogContent>
+                <Box>
+                    <p>Выбранный тег:</p>
+                    {(leftSelecting ? leftTag : rightTag)
+                        ? ((tag => <Tag text={tag.name} color={tag.color} />)(leftSelecting ? leftTag : rightTag))
+                        : <p><i>Не выбрано</i></p>
+                    }
+                </Box>
+                <TagTree
+                    tags={allTags}
+                    onTagClick={handleTagClick}
+                    maxHeight={'50vh'}
+                    flex={1}
+                />
+            </DialogContent>
+            <DialogActions>
+
+            </DialogActions>
+        </Dialog>
+        <Box>
+            <Typography variant="h5" gutterBottom>Сравнение статистики</Typography>
+            <Box className='comparison-selected-tags'>
+                <p className='p2'>Левый тег:</p>
+                {leftTag
+                    ? <Tag text={leftTag.name} color={leftTag.color} />
+                    : <p
+                        onClick={() => openTagSelectMenu('left')}
+                        title="Выбрать левый тег"
+                        className='p3'
+                    ><i>{"<Не выбрано>"}</i></p>
+                }
+                <p className='p4'>Правый тег:</p>
+                {rightTag
+                    ? <Tag text={rightTag.name} color={rightTag.color} />
+                    : <p
+                        onClick={() => openTagSelectMenu('right')}
+                        title="Выбрать правый тег"
+                        className='p5'
+                    ><i>{"<Не выбрано>"}</i></p>
+                }
+                <Button
+                    color='success'
+                    variant='contained'
+                    size='small'
+                    onClick={loadComparison}
+                >Сравнить</Button>
+            </Box>
 
             <Paper elevation={3} sx={{ p: 3, mb: 3 }}>
                 <Typography variant="h6" gutterBottom>Общие метрики</Typography>
@@ -364,7 +445,7 @@ const StatComparison = () => {
                         <Tag
                             text={data.first.tag.name}
                             color={data.first.tag.color}
-                            styles={{width: 'fit-content', fontSize: 28, padding:'24px 12px', alignSelf: 'center', mb: 2}}
+                            styles={{ width: 'fit-content', fontSize: 28, padding: '24px 12px', alignSelf: 'center', mb: 2 }}
                         />
                         {renderPieChart(firstEmotions, "Распределение эмоций")}
                         <Divider sx={{ my: 2 }} />
@@ -377,7 +458,7 @@ const StatComparison = () => {
                         <Tag
                             text={data.second.tag.name}
                             color={data.second.tag.color}
-                            styles={{width: 'fit-content', fontSize: 28, padding:'24px 12px', alignSelf: 'center', mb: 2}}
+                            styles={{ width: 'fit-content', fontSize: 28, padding: '24px 12px', alignSelf: 'center', mb: 2 }}
                         />
                         {renderPieChart(secondEmotions, "Распределение эмоций")}
                         <Divider sx={{ my: 2 }} />
@@ -398,7 +479,47 @@ const StatComparison = () => {
                 </Grid>
             </Grid>
         </Box>
-    );
+    </>;
 };
+
+function mapErrorAfterReq(err) {
+    const response = err.response;
+    const message = err.message;
+
+    if (!(response || err.request)) {
+        return {
+            message: message || 'Неизвестная ошибка',
+            type: 'setup_error'
+        };
+    }
+    if (response) {
+        return {
+            message: response.data?.message || `Неизвестная ошибка сервиса! Статус: ${response.status}.`,
+            status: response.status,
+            data: response.data,
+            type: 'server_error'
+        };
+    }
+    if (err.code === 'ECONNREFUSED') {
+        return {
+            message: 'Ошибка соединения — сервис недоступен! Попробуйте позже или перезагрузите страницу.',
+            code: err.code,
+            isNetworkError: true,
+            type: 'connection_refused'
+        };
+    } else if (message && message.includes('Network Error')) {
+        return {
+            message: 'Ошибка сети! Пожалуйста, проверьте интернет-соединение и перезагрузите страницу.',
+            isNetworkError: true,
+            type: 'network_error'
+        };
+    }
+    return {
+        message: message || 'Неизвестная ошибка запроса',
+        code: err.code,
+        isNetworkError: true,
+        type: 'request_error'
+    };
+}
 
 export default StatComparison;
