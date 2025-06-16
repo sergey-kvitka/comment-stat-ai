@@ -44,66 +44,68 @@ const StatComparison = () => {
     const [leftSelecting, setLeftSelecting] = useState(false);
     const [tagSelectDialogOpened, setTagSelectDialogOpened] = useState(false);
 
-    const { notification, defaultSuccessNotification, defaultErrorNotification } = useNotificationApi();
+    const [data, setData] = useState(
+        // {
+        //     general: {
+        //         totalAmount: 1033,
+        //         commonAmount: 468
+        //     },
+        //     first: {
+        //         tag: {
+        //             id: "623",
+        //             name: "Май 2025",
+        //             color: "#b78648",
+        //             path: "/Озон/Пункты выдачи/Саратов/Тархова 40/Май 2025",
+        //             userId: 7352,
+        //             parentId: "551"
+        //         },
+        //         amount: 468,
+        //         analyzed: 437,
+        //         averageLength: 322.851,
+        //         emotions: {
+        //             joy: 316,
+        //             anger: 28,
+        //             sadness: 19,
+        //             fear: 3,
+        //             surprise: 15,
+        //             neutral: 56
+        //         },
+        //         sentiments: {
+        //             positive: 321,
+        //             negative: 55,
+        //             neutral: 61
+        //         }
+        //     },
+        //     second: {
+        //         tag: {
+        //             id: "624",
+        //             name: "Май-июнь 2025",
+        //             color: "#4a8c48",
+        //             path: "/Озон/Пункты выдачи/Саратов/Тархова 40/Май-июнь 2025",
+        //             userId: 7352,
+        //             parentId: "551"
+        //         },
+        //         amount: 1033,
+        //         analyzed: 995,
+        //         averageLength: 298.4,
+        //         emotions: {
+        //             joy: 811,
+        //             anger: 45,
+        //             sadness: 52,
+        //             fear: 8,
+        //             surprise: 38,
+        //             neutral: 72
+        //         },
+        //         sentiments: {
+        //             positive: 799,
+        //             negative: 99,
+        //             neutral: 103
+        //         }
+        //     }
+        // }
+    );
 
-    const data = useMemo(() => ({
-        general: {
-            totalAmount: 1033,
-            commonAmount: 468
-        },
-        first: {
-            tag: {
-                id: "623",
-                name: "Май 2025",
-                color: "#b78648",
-                path: "/Озон/Пункты выдачи/Саратов/Тархова 40/Май 2025",
-                userId: 7352,
-                parentId: "551"
-            },
-            amount: 468,
-            analyzed: 437,
-            averageLength: 322.851,
-            emotions: {
-                joy: 316,
-                anger: 28,
-                sadness: 19,
-                fear: 3,
-                surprise: 15,
-                neutral: 56
-            },
-            sentiments: {
-                positive: 321,
-                negative: 55,
-                neutral: 61
-            }
-        },
-        second: {
-            tag: {
-                id: "624",
-                name: "Май-июнь 2025",
-                color: "#4a8c48",
-                path: "/Озон/Пункты выдачи/Саратов/Тархова 40/Май-июнь 2025",
-                userId: 7352,
-                parentId: "551"
-            },
-            amount: 1033,
-            analyzed: 995,
-            averageLength: 298.4,
-            emotions: {
-                joy: 811,
-                anger: 45,
-                sadness: 52,
-                fear: 8,
-                surprise: 38,
-                neutral: 72
-            },
-            sentiments: {
-                positive: 799,
-                negative: 99,
-                neutral: 103
-            }
-        }
-    }), []);
+    const { defaultSuccessNotification, defaultErrorNotification } = useNotificationApi();
 
     const openTagSelectMenu = useCallback(tagToSelect => {
         setLeftSelecting(tagToSelect === 'left');
@@ -111,7 +113,21 @@ const StatComparison = () => {
     }, []);
 
     const loadComparison = useCallback(async () => {
-
+        try {
+            const response = await axios.post(
+                `${process.env.REACT_APP_BACKEND_URL}/api/stat/compare`,
+                {
+                    firstTagId: leftTag.id,
+                    secondTagId: rightTag.id,
+                },
+                { withCredentials: true }
+            );
+            setData(response.data);
+            defaultSuccessNotification('Статистика сформирована');
+        } catch (err) {
+            console.error(err);
+            defaultErrorNotification(mapErrorAfterReq(err), 'Ошибка загрузки статистики');
+        }
     }, []);
 
     const handleTagClick = useCallback(tag => {
@@ -373,6 +389,7 @@ const StatComparison = () => {
         <Dialog
             open={tagSelectDialogOpened}
             onClose={() => setTagSelectDialogOpened(false)}
+            sx={{ minWidth: '50vw' }}
         >
             <DialogTitle>Выбор {leftSelecting ? "левого" : "правого"} тега</DialogTitle>
             <DialogContent>
@@ -391,7 +408,11 @@ const StatComparison = () => {
                 />
             </DialogContent>
             <DialogActions>
-
+                <Button
+                    variant='contained'
+                    onClick={setTagSelectDialogOpened(false)}
+                    sx={{ marginLeft: 'auto' }}
+                >Закрыть</Button>
             </DialogActions>
         </Dialog>
         <Box>
@@ -420,64 +441,68 @@ const StatComparison = () => {
                     variant='contained'
                     size='small'
                     onClick={loadComparison}
+                    disabled={!leftTag || !rightTag}
                 >Сравнить</Button>
             </Box>
 
-            <Paper elevation={3} sx={{ p: 3, mb: 3 }}>
-                <Typography variant="h6" gutterBottom>Общие метрики</Typography>
-                <Grid container spacing={2}>
-                    <Grid item xs={6}>
-                        <Typography>Всего комментариев: {data.general.totalAmount}</Typography>
-                        <Typography>Общих комментариев: {data.general.commonAmount}</Typography>
+            {!data ? <h4>Выберите теги и выполните сравнение для отображения статистики</h4> : <>
+                <Paper elevation={3} sx={{ p: 3, mb: 3 }}>
+                    <Typography variant="h6" gutterBottom>Общие метрики</Typography>
+                    <Grid container spacing={2}>
+                        <Grid item xs={6}>
+                            <Typography>Всего комментариев: {data.general.totalAmount}</Typography>
+                            <Typography>Общих комментариев: {data.general.commonAmount}</Typography>
+                        </Grid>
+                        <p></p>
+                        <p></p>
+                        <Grid item xs={6}>
+                            <Typography>Покрытие первого тега: {formatNumber(calculatePercentage(data.first.amount, data.general.totalAmount))}%</Typography>
+                            <Typography>Покрытие второго тега: {formatNumber(calculatePercentage(data.second.amount, data.general.totalAmount))}%</Typography>
+                        </Grid>
                     </Grid>
-                    <p></p>
-                    <p></p>
-                    <Grid item xs={6}>
-                        <Typography>Покрытие первого тега: {formatNumber(calculatePercentage(data.first.amount, data.general.totalAmount))}%</Typography>
-                        <Typography>Покрытие второго тега: {formatNumber(calculatePercentage(data.second.amount, data.general.totalAmount))}%</Typography>
+                </Paper>
+
+                <Grid container spacing={3} sx={{ display: 'flex' }}>
+                    <Grid item xs={6} sx={{ flex: 1 }}>
+                        <Paper elevation={3} sx={{ p: 2, height: '100%', display: 'flex', flexDirection: 'column' }}>
+                            <Tag
+                                text={data.first.tag.name}
+                                color={data.first.tag.color}
+                                styles={{ width: 'fit-content', fontSize: 28, padding: '24px 12px', alignSelf: 'center', mb: 2 }}
+                            />
+                            {renderPieChart(firstEmotions, "Распределение эмоций")}
+                            <Divider sx={{ my: 2 }} />
+                            {renderPieChart(firstSentiments, "Настроения")}
+                        </Paper>
+                    </Grid>
+
+                    <Grid item xs={6} sx={{ flex: 1 }}>
+                        <Paper elevation={3} sx={{ p: 2, height: '100%', display: 'flex', flexDirection: 'column' }}>
+                            <Tag
+                                text={data.second.tag.name}
+                                color={data.second.tag.color}
+                                styles={{ width: 'fit-content', fontSize: 28, padding: '24px 12px', alignSelf: 'center', mb: 2 }}
+                            />
+                            {renderPieChart(secondEmotions, "Распределение эмоций")}
+                            <Divider sx={{ my: 2 }} />
+                            {renderPieChart(secondSentiments, "Настроения")}
+                        </Paper>
                     </Grid>
                 </Grid>
-            </Paper>
 
-            <Grid container spacing={3} sx={{ display: 'flex' }}>
-                <Grid item xs={6} sx={{ flex: 1 }}>
-                    <Paper elevation={3} sx={{ p: 2, height: '100%', display: 'flex', flexDirection: 'column' }}>
-                        <Tag
-                            text={data.first.tag.name}
-                            color={data.first.tag.color}
-                            styles={{ width: 'fit-content', fontSize: 28, padding: '24px 12px', alignSelf: 'center', mb: 2 }}
-                        />
-                        {renderPieChart(firstEmotions, "Распределение эмоций")}
-                        <Divider sx={{ my: 2 }} />
-                        {renderPieChart(firstSentiments, "Настроения")}
-                    </Paper>
+                <Grid container spacing={3} sx={{ mt: 2 }}>
+                    <Grid item xs={12}>
+                        {renderComparisonTable("Сравнение эмоций", firstEmotions, secondEmotions)}
+                    </Grid>
+                    <Grid item xs={12}>
+                        {renderComparisonTable("Сравнение настроений", firstSentiments, secondSentiments)}
+                    </Grid>
+                    <Grid item xs={12}>
+                        {renderMainMetricsComparison()}
+                    </Grid>
                 </Grid>
-
-                <Grid item xs={6} sx={{ flex: 1 }}>
-                    <Paper elevation={3} sx={{ p: 2, height: '100%', display: 'flex', flexDirection: 'column' }}>
-                        <Tag
-                            text={data.second.tag.name}
-                            color={data.second.tag.color}
-                            styles={{ width: 'fit-content', fontSize: 28, padding: '24px 12px', alignSelf: 'center', mb: 2 }}
-                        />
-                        {renderPieChart(secondEmotions, "Распределение эмоций")}
-                        <Divider sx={{ my: 2 }} />
-                        {renderPieChart(secondSentiments, "Настроения")}
-                    </Paper>
-                </Grid>
-            </Grid>
-
-            <Grid container spacing={3} sx={{ mt: 2 }}>
-                <Grid item xs={12}>
-                    {renderComparisonTable("Сравнение эмоций", firstEmotions, secondEmotions)}
-                </Grid>
-                <Grid item xs={12}>
-                    {renderComparisonTable("Сравнение настроений", firstSentiments, secondSentiments)}
-                </Grid>
-                <Grid item xs={12}>
-                    {renderMainMetricsComparison()}
-                </Grid>
-            </Grid>
+            </>
+            }
         </Box>
     </>;
 };
