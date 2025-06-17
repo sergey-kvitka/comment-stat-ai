@@ -21,6 +21,18 @@ class Stat {
         stats.forEach(stat => mapInPlace(stat));
         return stats;
     }
+
+    static async findByPeriod(userId, from, to) {
+        const result = await db.query( /* sql */ `
+            select * from stats
+            where user_id = $1
+            and saved_at between $2 and $3
+            `, [userId, from, to]
+        );
+        const stats = result.rows;
+        stats.forEach(stat => mapInPlace(stat));
+        return stats;
+    }
 }
 
 module.exports = Stat;

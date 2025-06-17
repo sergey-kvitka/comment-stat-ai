@@ -3,8 +3,8 @@ import { useState, useEffect, useCallback } from 'react';
 import { format } from 'date-fns';
 import StatComparison from './StatComparison';
 import { useNavigate } from 'react-router-dom';
-
-
+import { formatISO } from 'date-fns';
+import { DateTimePicker } from '@mui/x-date-pickers/DateTimePicker';
 import {
     Box,
     Typography,
@@ -12,7 +12,8 @@ import {
     Grid,
     Tabs,
     Tab,
-    CircularProgress
+    CircularProgress,
+    Button
 } from '@mui/material';
 import {
     LineChart,
@@ -73,10 +74,33 @@ const sentimentMap = {
     neutral: 'Нейтральные'
 };
 
+const dateTimeFormat = 'DD.MM.YYYY';
+
+const getDateWeekAgo = () => {
+    const dateWeekAgo = new Date();
+    dateWeekAgo.setDate(dateWeekAgo.getDate() - 6);
+    dateWeekAgo.setHours(0, 0, 0, 0);
+    return dateWeekAgo;
+};
+
+const getDateToday = () => {
+    const dateToday = new Date();
+    dateToday.setHours(23, 59, 59, 999);
+    return dateToday;
+}
+
 const StatsDashboard = () => {
+
+    const [dateFrom, setDateFrom] = useState(getDateWeekAgo());
+    const [dateTo, setDateTo] = useState(getDateToday());
+
+    const [newDateFrom, setNewDateFrom] = useState(getDateWeekAgo());
+    const [newDateTo, setNewDateTo] = useState(getDateToday());
+
+    const [isPeriodValid, setIsPeriodValid] = useState(true);
+
     const [data, setData] = useState(null);
     const [loading, setLoading] = useState(true);
-    const [error, ] = useState(null);
     const [activeTab, setActiveTab] = useState(0);
 
     const { notification, defaultErrorNotification } = useNotificationApi();
@@ -86,8 +110,12 @@ const StatsDashboard = () => {
     useEffect(() => {
         const fetchData = async () => {
             try {
-                const response = await axios.get(
-                    `${process.env.REACT_APP_BACKEND_URL}/api/stat/all`,
+                const response = await axios.post(
+                    `${process.env.REACT_APP_BACKEND_URL}/api/stat/findByPeriod`,
+                    {
+                        from: formatISO(dateFrom),
+                        to: formatISO(dateTo)
+                    },
                     { withCredentials: true }
                 );
                 const rawData = response.data ?? { stats: [] };
@@ -106,7 +134,20 @@ const StatsDashboard = () => {
             }
         };
         fetchData();
-    }, [notification, defaultErrorNotification]);
+    }, [notification, defaultErrorNotification, dateFrom, dateTo]);
+
+    useEffect(() => {
+        setIsPeriodValid(
+            newDateFrom && newDateTo
+            && newDateFrom < newDateTo
+            && newDateFrom.setHours(0, 0, 0, 0) !== newDateTo.setHours(0, 0, 0, 0)
+        )
+    }, [newDateFrom, newDateTo]);
+
+    const updatePeriod = useCallback(() => {
+        setDateFrom(newDateFrom);
+        setDateTo(newDateTo);
+    }, [dateFrom, dateTo, newDateFrom, newDateTo]);
 
     const processData = rawData => {
         const stats = rawData['stats'];
@@ -283,14 +324,6 @@ const StatsDashboard = () => {
         );
     }
 
-    if (error) {
-        return (
-            <Box display="flex" justifyContent="center" alignItems="center" minHeight="200px">
-                <Typography color="error">Ошибка загрузки данных: {error}</Typography>
-            </Box>
-        );
-    }
-
     if (!data) {
         return null;
     }
@@ -350,7 +383,48 @@ const StatsDashboard = () => {
     return <>
         <Header currentPage="dashboard" onLogout={handleLogout} />
         <Box sx={{ p: 3 }}>
-            <Typography variant="h4" gutterBottom sx={{ml:1.5}}>Аналитика комментариев</Typography>
+            <Box sx={{ display: 'flex', flexDirection: 'row', gap: 2 }}>
+                <Typography variant="h4" gutterBottom sx={{ ml: 1.5 }}>Аналитика комментариев</Typography>
+                <DateTimePicker
+                    key={newDateFrom ? 'filled-start' : 'empty-start'}
+                    label="Начало диапазона"
+                    value={newDateFrom}
+                    onChange={newValue => setNewDateFrom(newValue)}
+                    maxDateTime={newDateTo}
+                    format={dateTimeFormat}
+                    ampm={false}
+                    views={['year', 'month', 'day']}
+                    slotProps={{
+                        textField: { fullWidth: true },
+                        actionBar: {
+                            actions: ['accept', 'cancel', 'today'],
+                        },
+                    }}
+                    sx={{ flex: 1, minWidth: 200 }}
+                />
+                <DateTimePicker
+                    key={newDateTo ? 'filled-end' : 'empty-end'}
+                    label="Конец диапазона"
+                    value={newDateTo}
+                    onChange={newValue => setNewDateFrom(newValue)}
+                    minDateTime={newDateFrom}
+                    format={dateTimeFormat}
+                    ampm={false}
+                    views={['year', 'month', 'day']}
+                    slotProps={{
+                        textField: { fullWidth: true },
+                        actionBar: {
+                            actions: ['accept', 'cancel', 'today'],
+                        },
+                    }}
+                    sx={{ flex: 1, minWidth: 200 }}
+                />
+                <Button
+                    disabled={!isPeriodValid}
+                    onClick={updatePeriod}
+                    variant='contained'
+                >Выбрать диапазон</Button>
+            </Box>
 
             <Tabs value={activeTab} onChange={(e, newValue) => setActiveTab(newValue)} sx={{ mb: 3 }}>
                 <Tab label="Анализ комментариев" />
