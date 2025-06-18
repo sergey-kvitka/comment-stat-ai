@@ -3,8 +3,14 @@ import { useState, useEffect, useCallback } from 'react';
 import { format } from 'date-fns';
 import StatComparison from './StatComparison';
 import { useNavigate } from 'react-router-dom';
+
+import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
+import { AdapterDayjs } from '@mui/x-date-pickers/AdapterDayjs';
 import { formatISO } from 'date-fns';
 import { DateTimePicker } from '@mui/x-date-pickers/DateTimePicker';
+import { ruRU } from '@mui/x-date-pickers/locales';
+import dayjs from 'dayjs';
+
 import {
     Box,
     Typography,
@@ -75,18 +81,21 @@ const sentimentMap = {
 };
 
 const dateTimeFormat = 'DD.MM.YYYY';
+const localeText = ruRU.components.MuiLocalizationProvider.defaultProps.localeText;
+localeText.okButtonLabel = 'ОК';
+localeText.cancelButtonLabel = 'Отмена';
 
 const getDateWeekAgo = () => {
     const dateWeekAgo = new Date();
-    dateWeekAgo.setDate(dateWeekAgo.getDate() - 6);
+    dateWeekAgo.setDate(dateWeekAgo.getDate() - 60);
     dateWeekAgo.setHours(0, 0, 0, 0);
-    return dateWeekAgo;
+    return dayjs(dateWeekAgo);
 };
 
 const getDateToday = () => {
     const dateToday = new Date();
     dateToday.setHours(23, 59, 59, 999);
-    return dateToday;
+    return dayjs(dateToday);
 }
 
 const StatsDashboard = () => {
@@ -113,12 +122,12 @@ const StatsDashboard = () => {
                 const response = await axios.post(
                     `${process.env.REACT_APP_BACKEND_URL}/api/stat/findByPeriod`,
                     {
-                        from: formatISO(dateFrom),
-                        to: formatISO(dateTo)
+                        from: formatISO(dateFrom.toDate()),
+                        to: formatISO(dateTo.toDate())
                     },
                     { withCredentials: true }
                 );
-                const rawData = response.data ?? { stats: [] };
+                const rawData = response.data || { stats: [] };
                 const processedData = processData(rawData);
                 setData(processedData);
                 setLoading(false);
@@ -129,6 +138,7 @@ const StatsDashboard = () => {
                     );
                 }
             } catch (err) {
+                console.error(err);
                 defaultErrorNotification(mapErrorAfterReq(err), 'Ошибка загрузки комментариев');
                 setLoading(false);
             }
@@ -137,10 +147,11 @@ const StatsDashboard = () => {
     }, [notification, defaultErrorNotification, dateFrom, dateTo]);
 
     useEffect(() => {
+        const [fromJs, toJs] = [newDateFrom?.toDate(), newDateTo?.toDate()];
         setIsPeriodValid(
-            newDateFrom && newDateTo
-            && newDateFrom < newDateTo
-            && newDateFrom.setHours(0, 0, 0, 0) !== newDateTo.setHours(0, 0, 0, 0)
+            fromJs && toJs
+            && fromJs < toJs
+            && fromJs.setHours(0, 0, 0, 0) !== toJs.setHours(0, 0, 0, 0)
         )
     }, [newDateFrom, newDateTo]);
 
@@ -150,6 +161,7 @@ const StatsDashboard = () => {
     }, [dateFrom, dateTo, newDateFrom, newDateTo]);
 
     const processData = rawData => {
+        console.log(rawData);
         const stats = rawData['stats'];
 
         // Группировка по дням для временных графиков
@@ -383,46 +395,63 @@ const StatsDashboard = () => {
     return <>
         <Header currentPage="dashboard" onLogout={handleLogout} />
         <Box sx={{ p: 3 }}>
-            <Box sx={{ display: 'flex', flexDirection: 'row', gap: 2 }}>
+            <Box sx={{ display: 'flex', flexDirection: 'row', gap: 2, alignItems: 'center' }}>
                 <Typography variant="h4" gutterBottom sx={{ ml: 1.5 }}>Аналитика комментариев</Typography>
-                <DateTimePicker
-                    key={newDateFrom ? 'filled-start' : 'empty-start'}
-                    label="Начало диапазона"
-                    value={newDateFrom}
-                    onChange={newValue => setNewDateFrom(newValue)}
-                    maxDateTime={newDateTo}
-                    format={dateTimeFormat}
-                    ampm={false}
-                    views={['year', 'month', 'day']}
-                    slotProps={{
-                        textField: { fullWidth: true },
-                        actionBar: {
-                            actions: ['accept', 'cancel', 'today'],
-                        },
-                    }}
-                    sx={{ flex: 1, minWidth: 200 }}
-                />
-                <DateTimePicker
-                    key={newDateTo ? 'filled-end' : 'empty-end'}
-                    label="Конец диапазона"
-                    value={newDateTo}
-                    onChange={newValue => setNewDateFrom(newValue)}
-                    minDateTime={newDateFrom}
-                    format={dateTimeFormat}
-                    ampm={false}
-                    views={['year', 'month', 'day']}
-                    slotProps={{
-                        textField: { fullWidth: true },
-                        actionBar: {
-                            actions: ['accept', 'cancel', 'today'],
-                        },
-                    }}
-                    sx={{ flex: 1, minWidth: 200 }}
-                />
+                <LocalizationProvider
+                    dateAdapter={AdapterDayjs}
+                    adapterLocale="ru"
+                    localeText={localeText}
+                >
+                    <DateTimePicker
+                        key={newDateFrom ? 'filled-start' : 'empty-start'}
+                        label="Начало диапазона"
+                        value={newDateFrom}
+                        onChange={newValue => setNewDateFrom(newValue)}
+                        maxDateTime={newDateTo}
+                        format={dateTimeFormat}
+                        ampm={false}
+                        views={['year', 'month', 'day']}
+                        slotProps={{
+                            textField: { fullWidth: true },
+                            actionBar: {
+                                actions: ['accept', 'cancel', 'today'],
+                            },
+                        }}
+                        sx={{
+                            ml: 4,
+                            width: 175,
+                            '& .MuiPickersInputBase-sectionsContainer': {
+                                padding: '12px 0 !important'
+                            }
+                        }}
+                    />
+                    <DateTimePicker
+                        key={newDateTo ? 'filled-end' : 'empty-end'}
+                        label="Конец диапазона"
+                        value={newDateTo}
+                        onChange={newValue => setNewDateTo(newValue)}
+                        minDateTime={newDateFrom}
+                        format={dateTimeFormat}
+                        ampm={false}
+                        views={['year', 'month', 'day']}
+                        slotProps={{
+                            textField: { fullWidth: true },
+                            actionBar: {
+                                actions: ['accept', 'cancel', 'today'],
+                            },
+                        }}
+                        sx={{
+                            width: 175,
+                            '& .MuiPickersInputBase-sectionsContainer': {
+                                padding: '12px 0 !important'
+                            }
+                        }}
+                    />
+                </LocalizationProvider>
                 <Button
                     disabled={!isPeriodValid}
                     onClick={updatePeriod}
-                    variant='contained'
+                    variant='outlined'
                 >Выбрать диапазон</Button>
             </Box>
 

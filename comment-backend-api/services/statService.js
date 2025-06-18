@@ -65,7 +65,7 @@ exports.getComparisonByTags = async (leftTagId, rightTagId) => {
             }
             stat.averageLength += comment.text.length;
         });
-        stat.averageLength = (stat.averageLength / stat.amount).toFixed(3);
+        stat.averageLength = stat.amount ? (stat.averageLength / stat.amount).toFixed(3) : 0;
         result[info.key] = stat;
     });
     return result;
