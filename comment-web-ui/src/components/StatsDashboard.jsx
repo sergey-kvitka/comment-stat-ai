@@ -257,13 +257,26 @@ const StatsDashboard = () => {
 
             // Суммируем значения для каждого типа
             ['manualSentiment', 'manualEmotion', 'aiSentiment', 'aiEmotion'].forEach(type => {
-                for (const [key, value] of Object.entries(day[type])) {
+                const dayData = JSON.parse(JSON.stringify(day[type]));
+                let keys;
+                if (type.toLowerCase().includes('emotion')) {
+                    keys = Object.getOwnPropertyNames(emotionMap);
+                } else {
+                    keys = Object.getOwnPropertyNames(sentimentMap);
+                }
+                keys.forEach(key => {
+                    if (!dayData[key]) dayData[key] = 0;
+                });
+                for (const [key, value] of Object.entries(dayData)) {
                     result[`${type}_${key}`] = value;
                 }
             });
 
             return result;
-        });
+        }).sort((a, b) =>
+            new Date(a.date) - new Date(b.date)
+        );
+        // console.dir(dailyAnalysisArray);
 
         // Преобразование import/export daily в массивы
         const importDailyArray = Object.values(importExportData.import.daily).sort((a, b) =>
