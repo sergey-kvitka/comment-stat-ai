@@ -255,7 +255,7 @@ class Comment {
 
         const applyClassFilter = (array, name, incude = true) => {
             if (!array.length) return;
-            query += /* sql */ ` and c.${name}_id ${incude ? 'in' : 'not in'} (select id from ${name}s where name = any(${paramNo(1)}::text[]))`;
+            query += /* sql */ ` and (c.${name}_id ${incude ? 'in' : 'not in'} (select id from ${name}s where name = any(${paramNo(1)}::text[])) ${incude ? '' : `or c.${name}_id is null`})`;
             params.push(array);
         }
         applyClassFilter(emotionsIn, 'emotion');

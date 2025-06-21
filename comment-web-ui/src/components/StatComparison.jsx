@@ -2,7 +2,7 @@ import axios from 'axios';
 import { Box, Typography, Grid, Paper, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Divider, Button, DialogTitle, Dialog, DialogContent, DialogActions } from '@mui/material';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend } from 'recharts';
 import Tag from './Tag';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import TagTree from '../components/TagTree';
 import useNotificationApi from '../contexts/NotificationContext';
 
@@ -39,7 +39,6 @@ const StatComparison = () => {
 
     const [leftTag, setLeftTag] = useState(null);
     const [rightTag, setRightTag] = useState(null);
-    const [newTag, setNewTag] = useState(null);
 
     const [leftSelecting, setLeftSelecting] = useState(false);
     const [tagSelectDialogOpened, setTagSelectDialogOpened] = useState(false);
@@ -51,7 +50,7 @@ const StatComparison = () => {
 
     const [data, setData] = useState();
 
-    const { defaultSuccessNotification, defaultErrorNotification } = useNotificationApi();
+    const { notification, defaultSuccessNotification, defaultErrorNotification } = useNotificationApi();
 
     const openTagSelectMenu = useCallback(tagToSelect => {
         setLeftSelecting(tagToSelect === 'left');
@@ -59,6 +58,13 @@ const StatComparison = () => {
     }, []);
 
     const loadComparison = useCallback(async () => {
+        if (leftTag.id == rightTag.id) {
+            notification(
+                'Выберите разные теги!',
+                null, { severity: 'warning' }
+            );
+            return;
+        }
         try {
             const response = await axios.post(
                 `${process.env.REACT_APP_BACKEND_URL}/api/stat/compare`,
@@ -74,7 +80,7 @@ const StatComparison = () => {
             console.error(err);
             defaultErrorNotification(mapErrorAfterReq(err), 'Ошибка загрузки статистики');
         }
-    }, [leftTag, rightTag, defaultErrorNotification, defaultSuccessNotification, setData]);
+    }, [leftTag, rightTag, defaultErrorNotification, defaultSuccessNotification, setData, notification]);
 
     const handleTagClick = useCallback(tag => {
         (leftSelecting ? setLeftTag : setRightTag)(tag);
@@ -147,18 +153,18 @@ const StatComparison = () => {
     const renderComparisonTable = (title, firstData, secondData, totalKey = 'analyzed') => {
         return (
             <TableContainer component={Paper} sx={{ mt: 2, mb: 3 }}>
-                <Typography variant="subtitle1" gutterBottom sx={{ p: 1 }}>
-                    {title}
+                <Typography variant="h5" gutterBottom sx={{ p: 1 }}>
+                    <b>{title}</b>
                 </Typography>
-                <Table size="small">
+                <Table size="small" className='comparison-table'>
                     <TableHead>
                         <TableRow>
-                            <TableCell>Метрика</TableCell>
-                            <TableCell align="right">{data.first.tag.name}</TableCell>
-                            <TableCell align="right">{data.second.tag.name}</TableCell>
+                            <TableCell><b>Метрика</b></TableCell>
+                            <TableCell align="right"><Tag text={data.first.tag.name} color={data.first.tag.color}/></TableCell>
+                            <TableCell align="right"><Tag text={data.second.tag.name} color={data.second.tag.color}/></TableCell>
                             <TableCell align="right">Абс. разница</TableCell>
-                            <TableCell align="right">Разн. доля</TableCell>
-                            <TableCell align="right">% изменения</TableCell>
+                            <TableCell align="right">Разница в %</TableCell>
+                            <TableCell align="right">Рост процента</TableCell>
                         </TableRow>
                     </TableHead>
                     <TableBody>
@@ -180,7 +186,7 @@ const StatComparison = () => {
 
                             return (
                                 <TableRow key={index}>
-                                    <TableCell component="th" scope="row">{item.name}</TableCell>
+                                    <TableCell component="th" scope="row"><u>{item.name}</u></TableCell>
                                     <TableCell align="right">
                                         {item.value} ({formatNumber(firstPercent)}%)
                                     </TableCell>
@@ -247,17 +253,17 @@ const StatComparison = () => {
 
         return (
             <TableContainer component={Paper} sx={{ mt: 2, mb: 3 }}>
-                <Typography variant="subtitle1" gutterBottom sx={{ p: 1 }}>
-                    Сравнение основных метрик
+                <Typography variant="h5" gutterBottom sx={{ p: 1 }}>
+                    <b>Сравнение основных метрик</b>
                 </Typography>
-                <Table size="small">
+                <Table size="small" className='comparison-table'>
                     <TableHead>
                         <TableRow>
-                            <TableCell>Метрика</TableCell>
-                            <TableCell align="right">{data.first.tag.name}</TableCell>
-                            <TableCell align="right">{data.second.tag.name}</TableCell>
+                            <TableCell><b>Метрика</b></TableCell>
+                            <TableCell align="right"><Tag text={data.first.tag.name} color={data.first.tag.color}/></TableCell>
+                            <TableCell align="right"><Tag text={data.second.tag.name} color={data.second.tag.color}/></TableCell>
                             <TableCell align="right">Абс. разница</TableCell>
-                            <TableCell align="right">Отн. разница</TableCell>
+                            <TableCell align="right">Разница в %</TableCell>
                         </TableRow>
                     </TableHead>
                     <TableBody>
@@ -284,7 +290,7 @@ const StatComparison = () => {
 
                             return (
                                 <TableRow key={index}>
-                                    <TableCell component="th" scope="row">{metric.name}</TableCell>
+                                    <TableCell component="th" scope="row"><u>{metric.name}</u></TableCell>
                                     <TableCell align="right">{displayFirst}</TableCell>
                                     <TableCell align="right">{displaySecond}</TableCell>
                                     <TableCell
@@ -310,9 +316,9 @@ const StatComparison = () => {
 
     const renderPieChart = useCallback((data, title) => (
         <Box sx={{ mb: 3, p: 1, border: '1px solid #eee', borderRadius: 1 }}>
-            <Typography variant="subtitle1" gutterBottom>{title}</Typography>
+            <Typography variant="h5" gutterBottom sx={{mb:0}}><b>{title}:</b></Typography>
             <ResponsiveContainer width="100%" height={300} style={{ fontFamily: 'Arial' }}>
-                <PieChart>
+                <PieChart className='comparison-pie'>
                     <Pie
                         data={data}
                         cx="50%"
@@ -338,12 +344,12 @@ const StatComparison = () => {
         <Dialog
             open={tagSelectDialogOpened}
             onClose={() => setTagSelectDialogOpened(false)}
-            sx={{ minWidth: '50vw' }}
+            sx={{  }}
         >
-            <DialogTitle>Выбор {leftSelecting ? "левого" : "правого"} тега</DialogTitle>
-            <DialogContent>
-                <Box>
-                    <p>Выбранный тег:</p>
+            <DialogTitle><h2>Выбор {leftSelecting ? "левого" : "правого"} тега</h2></DialogTitle>
+            <DialogContent sx={{width: '500px'}}>
+                <Box sx={{display: 'flex', flexDirection: 'row', fontFamily: 'Arial', gap: 1, alignItems: 'center'}}>
+                    <p style={{fontSize: '18px'}}>Выбранный тег:</p>
                     {(leftSelecting ? leftTag : rightTag)
                         ? ((tag => <Tag text={tag.name} color={tag.color} />)(leftSelecting ? leftTag : rightTag))
                         : <p><i>Не выбрано</i></p>
@@ -369,7 +375,7 @@ const StatComparison = () => {
             <Box className='comparison-selected-tags'>
                 <p className='p2'>Левый тег:</p>
                 {leftTag
-                    ? <Tag text={leftTag.name} color={leftTag.color} onClick={() => openTagSelectMenu('left')} />
+                    ? <Tag text={leftTag.name} color={leftTag.color}  styles={{padding: '18px 8px'}} onClick={() => openTagSelectMenu('left')} />
                     : <p
                         onClick={() => openTagSelectMenu('left')}
                         title="Выбрать левый тег"
@@ -378,7 +384,7 @@ const StatComparison = () => {
                 }
                 <p className='p4'>Правый тег:</p>
                 {rightTag
-                    ? <Tag text={rightTag.name} color={rightTag.color} onClick={() => openTagSelectMenu('right')} />
+                    ? <Tag text={rightTag.name} color={rightTag.color} styles={{padding: '18px 8px'}} onClick={() => openTagSelectMenu('right')} />
                     : <p
                         onClick={() => openTagSelectMenu('right')}
                         title="Выбрать правый тег"
@@ -395,20 +401,20 @@ const StatComparison = () => {
             </Box>
 
             {!(data && firstEmotions && secondEmotions && firstSentiments && secondSentiments)
-                ? <h4>Выберите теги и выполните сравнение для отображения статистики</h4>
+                ? <Typography variant='h5'><u>Выберите теги и выполните сравнение для отображения статистики</u></Typography>
                 : <>
                     <Paper elevation={3} sx={{ p: 3, mb: 3 }}>
-                        <Typography variant="h6" gutterBottom>Общие метрики</Typography>
+                        <Typography variant="h5" gutterBottom><b>Общие метрики:</b></Typography>
                         <Grid container spacing={2}>
                             <Grid item xs={6}>
-                                <Typography>Всего комментариев: {data.general.totalAmount}</Typography>
-                                <Typography>Общих комментариев: {data.general.commonAmount}</Typography>
+                                <Typography variant='h6'>Всего комментариев: <b style={{color:'#007700'}}>{data.general.totalAmount}</b></Typography>
+                                <Typography variant='h6'>Общих комментариев: <b style={{color:'#007700'}}>{data.general.commonAmount}</b></Typography>
                             </Grid>
                             <p></p>
                             <p></p>
                             <Grid item xs={6}>
-                                <Typography>Покрытие первого тега: {formatNumber(calculatePercentage(data.first.amount, data.general.totalAmount))}%</Typography>
-                                <Typography>Покрытие второго тега: {formatNumber(calculatePercentage(data.second.amount, data.general.totalAmount))}%</Typography>
+                                <Typography variant='h6'>Покрытие первого тега: <b style={{color:'#007700'}}>{formatNumber(calculatePercentage(data.first.amount, data.general.totalAmount))}% ({data.first.amount})</b></Typography>
+                                <Typography variant='h6'>Покрытие второго тега: <b style={{color:'#007700'}}>{formatNumber(calculatePercentage(data.second.amount, data.general.totalAmount))}% ({data.second.amount})</b></Typography>
                             </Grid>
                         </Grid>
                     </Paper>
@@ -423,7 +429,7 @@ const StatComparison = () => {
                                 />
                                 {renderPieChart(firstEmotions, "Распределение эмоций")}
                                 <Divider sx={{ my: 2 }} />
-                                {renderPieChart(firstSentiments, "Настроения")}
+                                {renderPieChart(firstSentiments, "Распределение настроений")}
                             </Paper>
                         </Grid>
 
@@ -436,12 +442,12 @@ const StatComparison = () => {
                                 />
                                 {renderPieChart(secondEmotions, "Распределение эмоций")}
                                 <Divider sx={{ my: 2 }} />
-                                {renderPieChart(secondSentiments, "Настроения")}
+                                {renderPieChart(secondSentiments, "Распределение настроений")}
                             </Paper>
                         </Grid>
                     </Grid>
 
-                    <Grid container spacing={3} sx={{ mt: 2 }}>
+                    <Grid container sx={{ margin: '0 auto', width: 'fit-content',display: 'flex', flexDirection: 'column'}}>
                         <Grid item xs={12}>
                             {renderComparisonTable("Сравнение эмоций", firstEmotions, secondEmotions)}
                         </Grid>

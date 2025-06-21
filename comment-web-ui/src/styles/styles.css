@@ -169,6 +169,10 @@ select {
     margin: 12px 4px 18px;
 }
 
+.comparison-selected-tags * {
+    font-size: 24px;
+}
+
 .comparison-selected-tags .p3, .comparison-selected-tags .p5 {
     color: grey;
     background-color: rgb(243, 243, 243);
@@ -191,4 +195,12 @@ select {
 .comparison-selected-tags .p4 {
     color: rgb(112, 5, 5);
     text-decoration: underline;
+}
+
+.comparison-table * {
+    font-size: 20px !important;
+}
+
+.comparison-pie * {
+    font-size: 20px !important;
 }

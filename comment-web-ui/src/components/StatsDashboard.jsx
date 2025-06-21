@@ -1,3 +1,4 @@
+import { parse } from 'date-fns';
 import axios from 'axios';
 import { useState, useEffect, useCallback } from 'react';
 import { format } from 'date-fns';
@@ -87,7 +88,7 @@ localeText.cancelButtonLabel = 'Отмена';
 
 const getDateWeekAgo = () => {
     const dateWeekAgo = new Date();
-    dateWeekAgo.setDate(dateWeekAgo.getDate() - 60);
+    dateWeekAgo.setDate(dateWeekAgo.getDate() - 21);
     dateWeekAgo.setHours(0, 0, 0, 0);
     return dayjs(dateWeekAgo);
 };
@@ -96,7 +97,9 @@ const getDateToday = () => {
     const dateToday = new Date();
     dateToday.setHours(23, 59, 59, 999);
     return dayjs(dateToday);
-}
+};
+
+const dateSorter = (a, b) => parse(a.date, 'dd.MM.yyyy', new Date()) - parse(b.date, 'dd.MM.yyyy', new Date());
 
 const StatsDashboard = () => {
 
@@ -128,8 +131,7 @@ const StatsDashboard = () => {
                     { withCredentials: true }
                 );
                 const rawData = response.data || { stats: [] };
-                const processedData = processData(rawData);
-                setData(processedData);
+                setData(processData(rawData));
                 setLoading(false);
                 if (!rawData.stats.length) {
                     notification(
@@ -158,10 +160,9 @@ const StatsDashboard = () => {
     const updatePeriod = useCallback(() => {
         setDateFrom(newDateFrom);
         setDateTo(newDateTo);
-    }, [dateFrom, dateTo, newDateFrom, newDateTo]);
+    }, [newDateFrom, newDateTo]);
 
     const processData = rawData => {
-        console.log(rawData);
         const stats = rawData['stats'];
 
         // Группировка по дням для временных графиков
@@ -182,7 +183,7 @@ const StatsDashboard = () => {
 
         stats.forEach(item => {
             const date = new Date(item.savedAt);
-            const dayKey = format(date, 'yyyy-MM-dd');
+            const dayKey = format(date, 'dd.MM.yyyy');
 
             // Обработка данных анализа комментариев
             if (item.action.includes('comment-analysis')) {
@@ -254,65 +255,48 @@ const StatsDashboard = () => {
         // Преобразование dailyData в массив для графиков
         const dailyAnalysisArray = Object.values(dailyData).map(day => {
             const result = { date: day.date };
-
             // Суммируем значения для каждого типа
             ['manualSentiment', 'manualEmotion', 'aiSentiment', 'aiEmotion'].forEach(type => {
-                const dayData = JSON.parse(JSON.stringify(day[type]));
-                let keys;
-                if (type.toLowerCase().includes('emotion')) {
-                    keys = Object.getOwnPropertyNames(emotionMap);
-                } else {
-                    keys = Object.getOwnPropertyNames(sentimentMap);
-                }
-                keys.forEach(key => {
-                    if (!dayData[key]) dayData[key] = 0;
-                });
+                const dayData = JSON.parse(JSON.stringify(day[type])); // copying object
+                Object.getOwnPropertyNames(
+                    type.toLowerCase().includes('emotion')
+                        ? emotionMap
+                        : sentimentMap
+                )
+                    .filter(key => !Boolean(dayData[key]))
+                    .forEach(key => { dayData[key] = 0; })
+                    ;
                 for (const [key, value] of Object.entries(dayData)) {
                     result[`${type}_${key}`] = value;
                 }
             });
-
             return result;
-        }).sort((a, b) =>
-            new Date(a.date) - new Date(b.date)
-        );
-        // console.dir(dailyAnalysisArray);
+        }).sort(dateSorter);
 
         // Преобразование import/export daily в массивы
-        const importDailyArray = Object.values(importExportData.import.daily).sort((a, b) =>
-            new Date(a.date) - new Date(b.date)
-        );
-
-        const exportDailyArray = Object.values(importExportData.export.daily).sort((a, b) =>
-            new Date(a.date) - new Date(b.date)
-        );
+        const importDailyArray = Object.values(importExportData.import.daily).sort(dateSorter);
+        const exportDailyArray = Object.values(importExportData.export.daily).sort(dateSorter);
 
         // Преобразование данных по типам файлов для круговых диаграмм
-        const importByType = Object.entries(importExportData.import.byType).map(([name, value]) => ({
-            name,
-            value
-        }));
-
-        const exportByType = Object.entries(importExportData.export.byType).map(([name, value]) => ({
-            name,
-            value
-        }));
+        const importByType = Object.entries(importExportData.import.byType).map(([name, value]) => ({ name, value }));
+        const exportByType = Object.entries(importExportData.export.byType).map(([name, value]) => ({ name, value }));
 
         // Среднее время анализа
+        console.log(analysisData.time);
         const timeData = analysisData.time.reduce((acc, item) => {
-            const dayKey = format(item.date, 'yyyy-MM-dd');
+            const dayKey = format(item.date, 'dd.MM.yyyy');
             if (!acc[dayKey]) {
-                acc[dayKey] = { date: dayKey, totalTime: 0, count: 0 };
+                acc[dayKey] = { date: dayKey, totalTime: 0, amount: 0 };
             }
             acc[dayKey].totalTime += item.value;
-            acc[dayKey].count += 1;
+            acc[dayKey].amount += item.amount;
             return acc;
         }, {});
 
         const averageTimeArray = Object.values(timeData).map(day => ({
             date: day.date,
-            averageTime: day.totalTime / day.count
-        })).sort((a, b) => new Date(a.date) - new Date(b.date));
+            averageTime: day.amount === 0 ? 0 : day.totalTime / day.amount
+        })).sort(dateSorter);
 
         return {
             analysisData,
@@ -337,72 +321,67 @@ const StatsDashboard = () => {
         };
     };
 
-    const handleLogout = useCallback(() => {
-        navigate('/login');
-    }, [navigate]);
+    const handleLogout = useCallback(() => navigate('/login'), [navigate]);
 
-    if (loading) {
-        return (
-            <Box display="flex" justifyContent="center" alignItems="center" minHeight="200px">
-                <CircularProgress />
-            </Box>
-        );
-    }
+    if (loading) return (
+        <Box display="flex" justifyContent="center" alignItems="center" minHeight="200px" >
+            <CircularProgress />
+        </Box>
+    );
 
-    if (!data) {
-        return null;
-    }
+    if (!data) return null;
 
     const renderSentimentEmotionLines = (dataKeyPrefix) => {
         const sentimentKeys = Object.keys(data.analysisData.ai.sentiment);
         const emotionKeys = Object.keys(data.analysisData.ai.emotion);
-
-        return (
-            <Grid container spacing={3}>
-                <Grid item xs={12} md={6}>
-                    <Typography variant="h6" gutterBottom>Настроения</Typography>
-                    <ResponsiveContainer width={800} height={400}>
-                        <LineChart data={data.dailyAnalysis}>
-                            <CartesianGrid strokeDasharray="3 3" />
-                            <XAxis dataKey="date" />
-                            <YAxis />
-                            <Tooltip />
-                            <Legend />
-                            {sentimentKeys.map(key => (
-                                <Line
-                                    key={`${dataKeyPrefix}Sentiment_${key}`}
-                                    type="monotone"
-                                    dataKey={`${dataKeyPrefix}Sentiment_${key}`}
-                                    stroke={COLORS.sentiment[key]}
-                                    name={`${sentimentMap[key]}`}
-                                />
-                            ))}
-                        </LineChart>
-                    </ResponsiveContainer>
-                </Grid>
-                <Grid item xs={12} md={6}>
-                    <Typography variant="h6" gutterBottom>Эмоции</Typography>
-                    <ResponsiveContainer width={800} height={400}>
-                        <LineChart data={data.dailyAnalysis}>
-                            <CartesianGrid strokeDasharray="3 3" />
-                            <XAxis dataKey="date" />
-                            <YAxis />
-                            <Tooltip />
-                            <Legend />
-                            {emotionKeys.map(key => (
-                                <Line
-                                    key={`${dataKeyPrefix}Emotion_${key}`}
-                                    type="monotone"
-                                    dataKey={`${dataKeyPrefix}Emotion_${key}`}
-                                    stroke={COLORS.emotion[key]}
-                                    name={`${emotionMap[key]}`}
-                                />
-                            ))}
-                        </LineChart>
-                    </ResponsiveContainer>
-                </Grid>
+        return <
+            Grid container spacing={3}
+        >
+            <Grid item xs={12} md={6}>
+                <Typography variant="h6" gutterBottom>Настроения</Typography>
+                <ResponsiveContainer width={800} height={400}>
+                    <LineChart data={data.dailyAnalysis}>
+                        <CartesianGrid strokeDasharray="3 3" />
+                        <XAxis dataKey="date" />
+                        <YAxis />
+                        <Tooltip />
+                        <Legend />
+                        {sentimentKeys.map(key => (
+                            <Line
+                                key={`${dataKeyPrefix}Sentiment_${key}`}
+                                type="monotone"
+                                dataKey={`${dataKeyPrefix}Sentiment_${key}`}
+                                stroke={COLORS.sentiment[key]}
+                                name={`${sentimentMap[key]}`}
+                                strokeWidth={2}
+                            />
+                        ))}
+                    </LineChart>
+                </ResponsiveContainer>
             </Grid>
-        );
+            <Grid item xs={12} md={6}>
+                <Typography variant="h6" gutterBottom>Эмоции</Typography>
+                <ResponsiveContainer width={800} height={400}>
+                    <LineChart data={data.dailyAnalysis}>
+                        <CartesianGrid strokeDasharray="3 3" />
+                        <XAxis dataKey="date" />
+                        <YAxis />
+                        <Tooltip />
+                        <Legend />
+                        {emotionKeys.map(key => (
+                            <Line
+                                key={`${dataKeyPrefix}Emotion_${key}`}
+                                type="monotone"
+                                dataKey={`${dataKeyPrefix}Emotion_${key}`}
+                                stroke={COLORS.emotion[key]}
+                                name={`${emotionMap[key]}`}
+                                strokeWidth={2}
+                            />
+                        ))}
+                    </LineChart>
+                </ResponsiveContainer>
+            </Grid>
+        </Grid>;
     };
 
     return <>
@@ -410,62 +389,63 @@ const StatsDashboard = () => {
         <Box sx={{ p: 3 }}>
             <Box sx={{ display: 'flex', flexDirection: 'row', gap: 2, alignItems: 'center' }}>
                 <Typography variant="h4" gutterBottom sx={{ ml: 1.5 }}>Аналитика комментариев</Typography>
-                <LocalizationProvider
-                    dateAdapter={AdapterDayjs}
-                    adapterLocale="ru"
-                    localeText={localeText}
-                >
-                    <DateTimePicker
-                        key={newDateFrom ? 'filled-start' : 'empty-start'}
-                        label="Начало диапазона"
-                        value={newDateFrom}
-                        onChange={newValue => setNewDateFrom(newValue)}
-                        maxDateTime={newDateTo}
-                        format={dateTimeFormat}
-                        ampm={false}
-                        views={['year', 'month', 'day']}
-                        slotProps={{
-                            textField: { fullWidth: true },
-                            actionBar: {
-                                actions: ['accept', 'cancel', 'today'],
-                            },
-                        }}
-                        sx={{
-                            ml: 4,
-                            width: 175,
-                            '& .MuiPickersInputBase-sectionsContainer': {
-                                padding: '12px 0 !important'
-                            }
-                        }}
-                    />
-                    <DateTimePicker
-                        key={newDateTo ? 'filled-end' : 'empty-end'}
-                        label="Конец диапазона"
-                        value={newDateTo}
-                        onChange={newValue => setNewDateTo(newValue)}
-                        minDateTime={newDateFrom}
-                        format={dateTimeFormat}
-                        ampm={false}
-                        views={['year', 'month', 'day']}
-                        slotProps={{
-                            textField: { fullWidth: true },
-                            actionBar: {
-                                actions: ['accept', 'cancel', 'today'],
-                            },
-                        }}
-                        sx={{
-                            width: 175,
-                            '& .MuiPickersInputBase-sectionsContainer': {
-                                padding: '12px 0 !important'
-                            }
-                        }}
-                    />
-                </LocalizationProvider>
-                <Button
-                    disabled={!isPeriodValid}
-                    onClick={updatePeriod}
-                    variant='outlined'
-                >Выбрать диапазон</Button>
+                {activeTab === 4 ? null : <>
+                    <LocalizationProvider
+                        dateAdapter={AdapterDayjs}
+                        adapterLocale="ru"
+                        localeText={localeText}
+                    >
+                        <DateTimePicker
+                            key={newDateFrom ? 'filled-start' : 'empty-start'}
+                            label="Начало диапазона"
+                            value={newDateFrom}
+                            onChange={newValue => setNewDateFrom(newValue)}
+                            maxDateTime={newDateTo}
+                            format={dateTimeFormat}
+                            ampm={false}
+                            views={['year', 'month', 'day']}
+                            slotProps={{
+                                textField: { fullWidth: true },
+                                actionBar: { actions: ['accept', 'cancel', 'today'], },
+                            }}
+                            sx={{
+                                ml: 4,
+                                width: 175,
+                                '& .MuiPickersInputBase-sectionsContainer': {
+                                    padding: '12px 0 !important'
+                                }
+                            }}
+                        />
+                        <DateTimePicker
+                            key={newDateTo ? 'filled-end' : 'empty-end'}
+                            label="Конец диапазона"
+                            value={newDateTo}
+                            onChange={newValue => setNewDateTo(newValue)}
+                            minDateTime={newDateFrom}
+                            format={dateTimeFormat}
+                            ampm={false}
+                            views={['year', 'month', 'day']}
+                            slotProps={{
+                                textField: { fullWidth: true },
+                                actionBar: {
+                                    actions: ['accept', 'cancel', 'today'],
+                                },
+                            }}
+                            sx={{
+                                width: 175,
+                                '& .MuiPickersInputBase-sectionsContainer': {
+                                    padding: '12px 0 !important'
+                                }
+                            }}
+                        />
+                    </LocalizationProvider>
+                    <Button
+                        disabled={!isPeriodValid}
+                        onClick={updatePeriod}
+                        variant='outlined'
+                    >Выбрать диапазон</Button>
+                </>
+                }
             </Box>
 
             <Tabs value={activeTab} onChange={(e, newValue) => setActiveTab(newValue)} sx={{ mb: 3 }}>
@@ -526,7 +506,9 @@ const StatsDashboard = () => {
                                         <YAxis />
                                         <Tooltip />
                                         <Legend />
-                                        <Line type="monotone" dataKey="total" stroke={COLORS.import} name="Всего импортировано" />
+                                        <Line type="monotone" dataKey="total" stroke={COLORS.import} name="Всего импортировано"
+                                            strokeWidth={2}
+                                        />
                                     </LineChart>
                                 </ResponsiveContainer>
                             </Paper>
@@ -541,7 +523,9 @@ const StatsDashboard = () => {
                                         <YAxis />
                                         <Tooltip />
                                         <Legend />
-                                        <Line type="monotone" dataKey="total" stroke={COLORS.export} name="Всего экспортировано" />
+                                        <Line type="monotone" dataKey="total" stroke={COLORS.export} name="Всего экспортировано"
+                                            strokeWidth={2}
+                                        />
                                     </LineChart>
                                 </ResponsiveContainer>
                             </Paper>
