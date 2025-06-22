@@ -429,7 +429,7 @@ const HomePage = () => {
                     { withCredentials: true }
                 );
                 const newTag = response.data.tag;
-                setAllTags(prev => [...prev, newTag]);
+                setAllTags(prev => [...prev ?? [], newTag]);
                 defaultSuccessNotification(`Тег "${newTag.name}" успешно создан!`);
                 setEditedTag({ mode: null, name: '' });
             } catch (err) {
